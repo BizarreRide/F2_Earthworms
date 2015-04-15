@@ -91,6 +91,168 @@ plot(density(data$endo), main="density-plot of endogeic abundance") # Outliers >
 ```
 
 
+# Figures of raw data
+```{r}
+data.raw.fig <- data[,c(which(colnames(data)=="age_class"),which(colnames(data)=="anc"):which(colnames(data)=="epi.bm"))]
+
+library(reshape2)
+data.rf.melted <- melt(data.raw.fig, id.vars=c(1,5:7), variable="sfg", value.name="abundance")
+data.rf.melted <- melt(data.raw.fig, id.vars=c(1,5,6), variable="sfg.bm", value.name="biomass")
+
+ggplot2()
+
+
+```
+
+
+
+## General linear Mixed Effects Models
+
+
+### Standardize Explanatory Variables
+```{r DataProcessing}
+
+## Create variable d(delta)samcam as the time difference of each sampling date to the first date, that each field was sampled; first date is Zero for all fields. ####
+data$dsamcam <- with(data, round(c(rep(0,60),date[61:120]-date[1:60],date[121:180]-date[1:60]),0))
+
+## Standardize all explanatory variables ####
+
+# extract all numerical variables
+std.var <- data[sapply(data,is.numeric)]
+# exclude all response variables
+std.var <- std.var[,-c(7:30,49:58)]
+
+# standardize, each column is divided by their standard deviation, and the mean of each column is subtracted 
+std.var <- as.data.frame(scale(std.var, center=TRUE, scale=TRUE))
+colnames(std.var) <- paste("scl", colnames(std.var), sep = ".") # rename columns
+
+data <- cbind(data, std.var)
+```
+
+### Scatterplots for all pairs of environmental variables
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+source("Data/GatherSource/coldiss.R")
+source("Data/GatherSource/panelutils.R")
+
+# Choose interesting environmental parameters
+env.chosen <- data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "dgN", "dgO")]
+env.chosen <- data[,c("anc", "ats1", "prec1","ats2", "hum2", "ata2", "prec2")]
+env.chosen <- data[,c("anc", "age_class", "samcam")]
+env.chosen <- data[,c("anc", "age_class", "dgO")]
+env.chosen <- data[,c("anc", "age_class", "location")]
+
+# Bivariate plots with histograms on the diagonal and smooth fitted curves
+op <- par(mfrow=c(1,1), pty="s")
+pairs(env.chosen, lower.panel=panel.smooth, upper.panel=panel.cor, method="pearson", diag.panel=panel.hist, main= "Bivariate Plots with Histograms and smooth curves\n(pearson)")
+par(op)
+
+# correlated with anc:
+# ats2, pH*cn, age_class, samcam, dgO
+```
+
+
+## Anecic Abundance
+
+```{r BoxPlots,echo=FALSE}
+
+# Variability within sites
+boxplot(anc~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+
+# variability within sampling campaigns
+boxplot(anc~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+
+# variability within sampling campaigns
+boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+```
+     
+ 
+
+```{r GLMM}
+library(glmmADMB)
+library(bbmle)
+library(lme4)
+library(coefplot2)
+
+M1 <- glmer(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M1)
+M2 <- glmer(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
+
+M1 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M1)
+M2 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
+
+
+AICtab(M1,M2)
+anc.best <- M2
+```
+
+
+
+### Model Validation
+```{r fig.width=8, fig.height=7}
+# Model Validation 
+confint(anc.best)
+par(mfrow=c(2,2))
+par(mar=c(5,5,2,3))
+plot(resid(anc.best)~fitted(anc.best)) 
+plot(fitted(anc.best) ~predict(anc.best, type="response")) 
+plot(predict(anc.best) ~predict(anc.best, type="response")) 
+plot(predict(anc.best, type="response") ~ data$anc)
+````
+
+
+# Extract Predictions and Standard errors for predictions
+```{r}
+# anc.1.mcmc = glmmadmb(anc ~ age_class + (1|field) + (1|samcam),data=ew.data,family="nbinom", zeroInflation=TRUE, mcmc = TRUE, mcmc.opts = mcmcControl(mcmc = 10000))
+
+td.anc=expand.grid(age_class=levels(data$age_class),
+              scl.dsamcam = mean(data$scl.dsamcam),
+               scl.dgO = mean(data$scl.dgO))         
+pred.anc <- cbind(td.anc,predict(anc.best, td.anc, type="link", se.fit=TRUE),anc.response=predict(anc.best, td.anc, type="response"))
+
+pred.anc <- within(pred.anc, {
+  AIC <- AIC(anc.best)
+  Rrandom <- summary(lm(fitted(anc.best)~ data$anc))$adj.r.squared
+  Rsquared <- summary(lm(predict(anc.best, type="response")~ data$anc))$adj.r.squared
+  anc <- 4*exp(fit)
+  LL <- 4*exp(fit - 1.96 * se.fit)   
+  UL <- 4*exp(fit + 1.96 * se.fit)  
+})
+head(pred.anc)
+range(data$anc)
+
+stat.anc = round(summary(anc.best)$coefficients[, c(3,4)],4)
+coef.anc = coeftab(anc.best)
+
+anc.env <- glmmadmb(anc ~ scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson")
+anc.pvalue <- anova(anc.env, anc.best)$"Pr(>Chi)"
+
+pred.Stat.anc = cbind(stat.anc,coef.anc,LogLikP=anc.pvalue[2],fixef=fixef(anc.best))
+````
+
+```{r}
+#write.table(pred.Stat.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(pred.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+```
+
+# Prediciton plots
+```{r}
+library(ggplot2)
+
+ggplot(pred.anc, aes(x=age_class, y=anc)) + 
+  geom_bar(stat="identity", width=0.5) +
+  geom_line(aes(group=anc))+  
+  geom_errorbar(aes(ymin=LL, ymax=UL), width=.1) +
+  geom_line()
+
+
+par(mfrow=c(1,1))
+par(mar=c(3,3,3,3))
+par(oma=c(1,1,1,1))
+coefplot2(anc.best)    
+```
+
+
+
+
 # Results
 
 ### README
