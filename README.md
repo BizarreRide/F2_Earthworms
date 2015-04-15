@@ -15,10 +15,6 @@ F2_EW_Total.txt - Dataset
 F2_EW_MainAnalysis - Analysis of earthworm abundances and biomass using glmm
 
 
-```r
-sessionInfo()
-```
-
 ```
 ## R version 3.1.3 (2015-03-09)
 ## Platform: x86_64-w64-mingw32/x64 (64-bit)
@@ -33,7 +29,9 @@ sessionInfo()
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
 ## loaded via a namespace (and not attached):
-## [1] digest_0.6.8    evaluate_0.5.5  formatR_1.1     htmltools_0.2.6
-## [5] knitr_1.9       rmarkdown_0.5.1 stringr_0.6.2   tools_3.1.3    
-## [9] yaml_2.1.13
+##  [1] cluster_2.0.1   digest_0.6.8    evaluate_0.5.5  formatR_1.1    
+##  [5] grid_3.1.3      htmltools_0.2.6 knitr_1.9       lattice_0.20-31
+##  [9] MASS_7.3-40     Matrix_1.1-5    mgcv_1.8-5      nlme_3.1-120   
+## [13] parallel_3.1.3  permute_0.8-3   rmarkdown_0.5.1 stringr_0.6.2  
+## [17] tools_3.1.3     vegan_2.2-1     yaml_2.1.13
 ```
