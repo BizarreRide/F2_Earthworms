@@ -1,0 +1,18 @@
+---
+title: "F2_EW_MainAnalysis_README"
+author: "Quentin Schorpp"
+date: "`r Sys.Date()`"
+output: md_document
+---
+
+*The README.md file gives an overview of all the files in the project. It should briefly describe the project including things like its title, author(s), topic, any copyright information, and so on. It should also indicate how the folders in the project are organized and give instruction how to reproduce the project. The README file should be in the main project folder. It is good practice to dynamically include the system information for the R session that was used. To do this you can write your README file with R Markdown. Simply include the sessionInfo() command in a knitr code chunk in the R Markdown document. If you knit this file immediately after knitting your presentation document it will record the information for that session.*
+
+## Topic: 
+Earthworm communities from fields of the perennial bioenergy crop *S. pefoliatum*.
+
+Project files:
+F2_EW_Total.txt - Dataset
+F2_EW_MainAnalysis - Analysis of earthworm abundances and biomass using glmm
+
+```{r}
+sessionInfo()

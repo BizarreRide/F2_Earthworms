@@ -1,0 +1,128 @@
+---
+title: "F2_Earthworms"
+author:
+  - name: FirstName LastName
+    email: name@company.com
+date: "`r Sys.Date()`"
+e-mail: quentin.schorpp@ti.bund.de
+output: 
+      html_document:
+          toc: true
+          toc_depth: 2
+          number_sections: true
+          fig_caption: true
+          theme: cerulean
+          highlight: haddock
+---
+```{r SetGlobalOptions, include=FALSE}
+knitr::opts_chunk$set(fig.align="center",
+                      message=FALSE,
+                      error=FALSE,
+                      warning=FALSE,
+                      echo=FALSE)
+
+options(scipen=1, digits=2)
+```
+
+
+# Introduction  
+
+# Materials and methods  
+
+# Analysis
+
+## Load data
+```{r LoadData}
+# setwd("D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms")
+# KnitHTML brings an error message if not included; but for repsoducibility the full path should not be given!
+
+data <- read.delim("Data/F2_EW_Total.txt", header=TRUE)
+
+# change variable classes
+data$field.ID <- as.factor(data$field.ID)
+data$ID <- as.factor(data$ID)
+data$hole <- as.factor(data$hole)
+data$samcam <- as.factor(data$samcam)
+data$age_class <- factor(data$age_class, ordered=TRUE)
+data$soil_tillage <- ordered(data$soil_tillage)
+data$fertilisation <- ordered(data$fertilisation)
+data$weed_control <- ordered(data$weed_control)
+data$soil_compaction <- ordered(data$soil_compaction)
+data$compaction <- ordered(data$compaction)
+data$date <- strptime(data$date, "%d.%m.%Y")
+
+summary(data)
+str(data)
+
+
+```
+
+*******************************************************************************************
+**Earthworm species:**               || **Environmental:**
+-------------------------------------||-----------------------------------------------------
+ACA - *Aporrectodea caliginosa*      || crop [Silphie, Maize]
+ACH - *Allolobophora chlorotica*     || soiltype [Ut4, Lt, etc.]
+ALO - *Apporectodea longa*           || pH
+ARO - *Apporectodea rosea*           || CN [ratio]
+END - Endogeic, *spec.*              || moist [volumetric %]
+LCA - *Lumbricus castaneus*          || sand, silt, clay content [%]
+LRU - *Lumbricus rubellus*           || ats = average soil temperature in 5cm depth [?C] 
+LTR - *Lumbricus terrestris*         || ata = average air temperature in 2 m height [?C]
+LUM - *Lumbricus spec.*              || atb = average air temperature in 20 cm height [?C]
+OCY - *Octolasion cyaneum*           || hum = air humidity [%]
+OLA - *Octolasion lacteum*           || prec = precipitation [mm]
+UNK - Unknown                        || rad = radiation
+-------------------------------------||------------------------------------------------------
+**Spatial:**                         || **Temporal:** 
+-------------------------------------||------------------------------------------------------
+field.ID [Number, representing field] || season [autumn, spring]
+field [Field code, DO_2004,etc.]      || age class [old, intermediate 2, intermediate 1, young, maize]
+hole [hole; 1-4]                      || year [year of sampling; 2012,2013]
+location [Name of county]             || date [da of sampling]
+dgO [degree East, longitude]          || year esatblished [2004,-05, -07, -09, 11]
+dgN [degree North, latitude]          || age [age of field; y]
+____________________________________________________________________________________________
+*Environmental data: 1 = Average of 30 days before sampling; 2 = Average of day of sampling
+*_BM = Biomass values for Earthworm species in [g]
+
+```{r FunctionalGroups}
+# calculate soil functional groups, abundances
+data$anc <- rowSums(data[,c("LTR", "ALO")])
+data$endo <- rowSums(data[,c("ARO", "ACA", "ACH", "END","OCY","OLA")])
+data$epi <- rowSums(data[, c("LRU", "LCA")])
+
+
+# calculate soil functional groups, biomass
+data$anc.bm <- rowSums(data[,c("LTR_BM", "ALO_BM")])
+data$endo.bm <- rowSums(data[,c("ARO_BM", "ACA_BM", "ACH_BM", "END_BM","OCY_BM","OLA_BM")])
+data$epi.bm <- rowSums(data[, c("LRU_BM", "LCA_BM")])
+```
+**Functional groups:**
+* anc - anecic
+* end - endogeic
+* epi - epigeic
+
+```{r BiodiversityIndices}
+spe <- data[,which(colnames(data)=="ACA"):which(colnames(data)=="UNK")]
+
+# Total Abundances
+data$N <- rowSums(spe)
+
+# Species Richness
+data$SR <- rowSums(spe[,-c(12,9,5)] >0)
+
+# Shannon entropy
+data$H <- vegan::diversity(spe[,-c(12,9,5)])
+
+# Pielou Evenness
+data$J <- data$H/log(data$SR)
+```
+
+# Results
+
+```{r CreateREADME.md, }
+knitr::knit(input="README.Rmd", output="README.md") # Error: no such file or directory, when trying knitHTML
+```
+
+
+
