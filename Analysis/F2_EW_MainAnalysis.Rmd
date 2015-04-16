@@ -30,10 +30,15 @@ set.seed(1234)
 # Load Data
 #setwd("D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms/")
 source("Data/GatherSource/Gather1.R")
+source("Data/GatherSource/Gather2.R")
+source("Data/GatherSource/Gather3.R")
 ```
 
 ```{r RequiredPackages}
 source("Analysis/F2_EW_RequiredPackages.R")
+source("Data/GatherSource/coldiss.R")
+source("Data/GatherSource/panelutils.R")
+source("Data/GatherSource/ggplotTheme.R")
 ```
 
 
@@ -99,9 +104,6 @@ plot(density(data$endo), main="density-plot of endogeic abundance") # Outliers >
 
 ### Scatterplots for all pairs of environmental variables
 ```{r EnvironmentalPairplots,message=FALSE, warning=FALSE, echo=FALSE}
-source("Data/GatherSource/coldiss.R")
-source("Data/GatherSource/panelutils.R")
-
 # Choose interesting environmental parameters
 env.chosen <- data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "dgN", "dgO")]
 env.chosen <- data[,c("anc", "ats1", "prec1","ats2", "hum2", "ata2", "prec2")]
@@ -120,7 +122,6 @@ par(op)
 
 ### Figures of real data for functional groups
 ```{r RealDataFigures}
-source("Data/GatherSource/ggplotTheme.R")
 
 # create subset of real data with age_class, abundance (plus N) and biomass
 data.raw.fig <- data[,c(which(colnames(data)=="age_class"),                      
@@ -143,16 +144,55 @@ data.rf.melted <- ddply(data.rf.melted, c("age_class", "sfg"), summarise,
 data.rf.melted2 <- melt(data.raw.fig, id.vars=c(1,2:5), variable="sfg.bm", value.name="biomass")
 data.rf.melted2 <- data.rf.melted2[,c(1,6,7)]
 data.rf.melted2 <- ddply(data.rf.melted2, c("age_class", "sfg.bm"), summarise, 
-                          abc.n=length(biomass),
-                          abc.sum=sum(biomass),
-                          abc.mean=mean(biomass),
-                          abc.sd=sd(biomass),
-                          abc.se=abc.sd/sqrt(abc.n)) 
+                          bm.n=length(biomass),
+                          bm.sum=sum(biomass),
+                          bm.mean=mean(biomass),
+                          bm.sd=sd(biomass),
+                          bm.se=bm.sd/sqrt(bm.n)) 
 
 data.rf <- cbind(data.rf.melted,data.rf.melted2[,c(3:7)])
 
 # Barplots
-ggplot(data.rf, aes(x=age_class, y=abc.mean, fill=sfg)) +  
+ggplot(data.rf, aes(x=age_class, y=4*abc.mean, fill=sfg)) +  
+  geom_bar(stat="identity", position="dodge") + 
+  geom_errorbar(aes(ymin=4*(abc.mean-abc.se), ymax=4*(abc.mean+abc.se)), position=position_dodge(0.9),width=0.2) +
+  mytheme
+
+```
+
+Version 2
+```{r}
+# create subset of real data2 with age_class, abundance (plus N) and biomass
+data2.raw.fig <- data2[,c(which(colnames(data2)=="age_class"),                      
+                        which(colnames(data2)=="anc"):which(colnames(data2)=="epi"),
+                        which(colnames(data2)=="N"),
+                        which(colnames(data2)=="anc.bm"):which(colnames(data2)=="epi.bm"),
+                        which(colnames(data2)=="N.bm"))]
+
+
+# melt frame for use in ggplot
+data2.rf.melted <- melt(data2.raw.fig, id.vars=c(1,6:9), variable="sfg", value.name="abundance")
+data2.rf.melted <- data2.rf.melted[,c(1,6,7)]
+data2.rf.melted <- ddply(data2.rf.melted, c("age_class","sfg"), summarise, 
+                          abc.n=length(abundance),
+                          abc.sum=sum(abundance),
+                          abc.mean=mean(abundance),
+                          abc.sd=sd(abundance),
+                          abc.se=abc.sd/sqrt(abc.n)) 
+
+data2.rf.melted2 <- melt(data2.raw.fig, id.vars=c(1,2:5), variable="sfg.bm", value.name="biomass")
+data2.rf.melted2 <- data2.rf.melted2[,c(1,6,7)]
+data2.rf.melted2 <- ddply(data2.rf.melted2, c("age_class","sfg.bm"), summarise, 
+                          bm.n=length(biomass),
+                          bm.sum=sum(biomass),
+                          bm.mean=mean(biomass),
+                          bm.sd=sd(biomass),
+                          bm.se=bm.sd/sqrt(bm.n)) 
+
+data2.rf <- cbind(data2.rf.melted,data2.rf.melted2[,c(2:6)])
+
+# Barplots
+ggplot(data2.rf, aes(x=age_class, y=abc.mean, fill=sfg)) +  
   geom_bar(stat="identity", position="dodge") + 
   geom_errorbar(aes(ymin=abc.mean-abc.se, ymax=abc.mean+abc.se), position=position_dodge(0.9),width=0.2) +
   mytheme
