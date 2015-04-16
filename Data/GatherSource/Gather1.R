@@ -59,9 +59,13 @@ data$epi.bm <- rowSums(data[, c("LRU_BM", "LCA_BM")])
 ## Calculate Biodiversity Indices ####
 #______________________________________________________________________________
 spe <- data[,which(colnames(data)=="ACA"):which(colnames(data)=="UNK")]
+bm <- data[,which(colnames(data)=="ACA_BM"):which(colnames(data)=="UNK_BM")]
 
 # Total Abundances
 data$N <- rowSums(spe)
+
+# Total Biomass
+data$N.bm <- rowSums(bm)
 
 # Species Richness
 data$SR <- rowSums(spe[,-c(12,9,5)] >0)

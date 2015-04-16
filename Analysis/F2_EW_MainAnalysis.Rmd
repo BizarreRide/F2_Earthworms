@@ -98,7 +98,7 @@ plot(density(data$endo), main="density-plot of endogeic abundance") # Outliers >
 ```
 
 ### Scatterplots for all pairs of environmental variables
-```{r message=FALSE, warning=FALSE, echo=FALSE}
+```{r EnvironmentalPairplots,message=FALSE, warning=FALSE, echo=FALSE}
 source("Data/GatherSource/coldiss.R")
 source("Data/GatherSource/panelutils.R")
 
@@ -120,19 +120,42 @@ par(op)
 
 ### Figures of real data for functional groups
 ```{r RealDataFigures}
+source("Data/GatherSource/ggplotTheme.R")
 
 # create subset of real data with age_class, abundance (plus N) and biomass
-data.raw.fig <- data[,c(which(colnames(data)=="age_class"),which(colnames(data)=="anc"):which(colnames(data)=="epi.bm"))]
+data.raw.fig <- data[,c(which(colnames(data)=="age_class"),                      
+                        which(colnames(data)=="anc"):which(colnames(data)=="epi"),
+                        which(colnames(data)=="N"),
+                        which(colnames(data)=="anc.bm"):which(colnames(data)=="epi.bm"),
+                        which(colnames(data)=="N.bm"))]
+
 
 # melt frame for use in ggplot
-data.rf.melted <- melt(data.raw.fig, id.vars=c(1,5:7), variable="sfg", value.name="abundance")
-data.rf.melted2 <- melt(data.raw.fig, id.vars=c(1,2:4), variable="sfg.bm", value.name="biomass")
+data.rf.melted <- melt(data.raw.fig, id.vars=c(1,6:9), variable="sfg", value.name="abundance")
+data.rf.melted <- data.rf.melted[,c(1,6,7)]
+data.rf.melted <- ddply(data.rf.melted, c("age_class", "sfg"), summarise, 
+                          abc.n=length(abundance),
+                          abc.sum=sum(abundance),
+                          abc.mean=mean(abundance),
+                          abc.sd=sd(abundance),
+                          abc.se=abc.sd/sqrt(abc.n)) 
 
-data.rf <- cbind(data.rf.melted[,c(1,5,6)],data.rf.melted2[,c(5,6)])
+data.rf.melted2 <- melt(data.raw.fig, id.vars=c(1,2:5), variable="sfg.bm", value.name="biomass")
+data.rf.melted2 <- data.rf.melted2[,c(1,6,7)]
+data.rf.melted2 <- ddply(data.rf.melted2, c("age_class", "sfg.bm"), summarise, 
+                          abc.n=length(biomass),
+                          abc.sum=sum(biomass),
+                          abc.mean=mean(biomass),
+                          abc.sd=sd(biomass),
+                          abc.se=abc.sd/sqrt(abc.n)) 
 
+data.rf <- cbind(data.rf.melted,data.rf.melted2[,c(3:7)])
 
-ggplot(data.rf, aes(x=age_class, y=abundance)) + geom_bar(stat="identity") + facet_grid(~sfg)
-
+# Barplots
+ggplot(data.rf, aes(x=age_class, y=abc.mean, fill=sfg)) +  
+  geom_bar(stat="identity", position="dodge") + 
+  geom_errorbar(aes(ymin=abc.mean-abc.se, ymax=abc.mean+abc.se), position=position_dodge(0.9),width=0.2) +
+  mytheme
 
 ```
 
@@ -195,7 +218,7 @@ anc.best <- M2
 
 
 #### Model Validation
-```{r fig.width=8, fig.height=7}
+```{r ModelValidation,fig.width=8, fig.height=7}
 # Model Validation 
 confint(anc.best)
 par(mfrow=c(2,2))
@@ -208,7 +231,7 @@ plot(predict(anc.best, type="response") ~ data$anc)
 
 
 #### Extract Predictions and Standard errors for predictions
-```{r}
+```{r ExtractPredicitons}
 # anc.1.mcmc = glmmadmb(anc ~ age_class + (1|field) + (1|samcam),data=ew.data,family="nbinom", zeroInflation=TRUE, mcmc = TRUE, mcmc.opts = mcmcControl(mcmc = 10000))
 
 td.anc=expand.grid(age_class=levels(data$age_class),
@@ -242,7 +265,7 @@ pred.Stat.anc = cbind(stat.anc,coef.anc,LogLikP=anc.pvalue[2],fixef=fixef(anc.be
 ```
 
 #### Prediciton plots
-```{r}
+```{r AncPredictionPlot}
 library(ggplot2)
 
 ggplot(pred.anc, aes(x=age_class, y=anc)) + 
