@@ -8,7 +8,7 @@
 ##############
 
 
-setwd("D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms")
+#setwd("D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms")
 # KnitHTML brings an error message if not included; but for repsoducibility the full path should not be given!
 
 # Load data
