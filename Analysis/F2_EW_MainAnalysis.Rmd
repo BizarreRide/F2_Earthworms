@@ -120,6 +120,7 @@ par(op)
 # ats2, pH*cn, age_class, samcam, dgO
 ```
 
+
 ### Figures of real data for functional groups
 ```{r RealDataFigures}
 
@@ -337,6 +338,7 @@ data <- cbind(data, std.var)
 
 ### Anecic Abundance
 
+
 ```{r BoxPlots,echo=FALSE}
 
 # Variability within sites
@@ -349,15 +351,69 @@ boxplot(anc~samcam, data,col="grey", main="Variability within sampling campaigns
 boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
 ```
      
- 
 
 ```{r GLMM, cache=TRUE}
 M1 <- glmer(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M1)
 M2 <- glmer(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
 
-M1 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M1)
+# from Zuur "A beginers Guide....", p.116 ff
+plot(data$age_class, data$anc, xlab="Age Class",ylab="anecic abundance")
+M0 <- lm(anc ~ age_class, data)
+abline(M0, lwd=3)
+summary(M0)
+
+env.chosen <- cbind(resid(M0),data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "dgN", "dgO","dsamcam")])
+
+melted_a <- melt(env.chosen, id.vars="resid(M0)")
+
+ggplot(melted_a, aes(value, y="resid(M0)")) +
+  geom_point() +
+  facet_grid(. ~ variable)
+
+par(mfrow=c(4,3))
+for (i in 1:12) {
+  plot(env.chosen[,i],env.chosen[,1], xlab=colnames(env.chosen)[i])
+}
+
+
+
+colnames(env.chosen)[i])
+dev.off()
+
+
+plot(data$age_class,resid(M0))
+plot(data$field,resid(M0))
+plot(env.chosen[,1],resid(M0))
+plot(env.chosen[,2],resid(M0))
+plot(env.chosen[,3],resid(M0))
+plot(env.chosen[,4],resid(M0))
+plot(env.chosen[,5],resid(M0))
+plot(env.chosen[,6],resid(M0))
+
+
+
+env.chosen <- data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "dgN", "dgO","dsamcam")]
+op <- par(mfrow=c(1,1), pty="s")
+pairs(cbind(resid(M1),env.chosen), lower.panel=panel.cor, upper.panel=panel.smooth, method="pearson", diag.panel=panel.hist, main= "Bivariate Plots with Histograms and smooth curves\n(pearson)")
+par(op)
+
+M1 <- lm(anc ~ age_class + field, data)
+summary(aov(M1))
+
+
+plot(data$age_class, resid(M1))
+
+
+M2 <- lmer(anc ~ age_class + pH + (1|field.ID), data)
+summary(M2)
+
+M1 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.pH*scl.cn + scl.clay +(1|field.ID),data=data,family="poisson"); summary(M1)
 M2 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
 
+plot(data$clay,resid(M1))
+plot(data$pH,resid(M1))
+plot(data$scl.dsamcam,resid(M1))
+plot(data$age_class,predict(M1, type="response"))
 
 AICtab(M1,M2)
 anc.best <- M2
