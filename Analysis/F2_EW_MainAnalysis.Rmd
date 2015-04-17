@@ -301,6 +301,14 @@ The squareroot in 2nd order is ``r sqrt(3*3)``
 The squareroot in 3rd order is ``r sqrt(3)``   
 
 
+```{r RemoveDatasets1, include=FALSE}
+rm(data.raw.fig, data.rf, data.rf.melted, data.rf.melted2,
+   data2.raw.fig, data2.rf, data2.rf.melted, data2.rf.melted2,
+   data3.raw.fig, data3.rf, data3.rf.melted, data3.rf.melted2)
+```
+
+______________________________________________________________________________________________________________
+
 ## General linear Mixed Effects Models
 
 ### Data Pre-Processing  
