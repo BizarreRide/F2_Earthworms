@@ -50,7 +50,7 @@ df1 <- unique(df1[,-c(which(colnames(df1)=="samcam"),
 colnames(df2)[1] <- "field.ID"
 data3 <- merge(df1,df2,by="field.ID")
 data3$field.ID <- as.numeric(data3$field.ID)
-data3[order(data3$field.ID),]
+data3 <- data3[order(data3$field.ID),]
 rm(df1,df2,dfx)
 
 ## Functional Groups ####

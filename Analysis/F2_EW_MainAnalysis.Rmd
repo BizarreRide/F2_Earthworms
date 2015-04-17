@@ -154,13 +154,22 @@ data.rf <- cbind(data.rf.melted,data.rf.melted2[,c(3:7)])
 
 # Barplots
 ggplot(data.rf, aes(x=age_class, y=4*abc.mean, fill=sfg)) +  
-  geom_bar(stat="identity", position="dodge") + 
-  geom_errorbar(aes(ymin=4*(abc.mean-abc.se), ymax=4*(abc.mean+abc.se)), position=position_dodge(0.9),width=0.2) +
-  mytheme
-
+  geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15) + 
+  geom_errorbar(aes(ymin=4*abc.mean-4*abc.se, ymax=4*abc.mean+4*abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+  ggtitle("Data 1st Order") +
+  xlab("Age Class") + 
+  ylab("Abundance") +
+  ylim(-10,max(data.rf$abc.mean+data.rf$abc.se)) +
+  labs(fill="Functional Group") +
+  scale_fill_grey(labels=c("anecic","endogeic", "epigeic", "total")) +
+  scale_y_continuous(breaks=pretty_breaks(n=10)) +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
+  mytheme +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
+        legend.position=c(0.18,0.68))
 ```
 
-Version 2
+Version 2 with "2nd Order" data
 ```{r}
 # create subset of real data2 with age_class, abundance (plus N) and biomass
 data2.raw.fig <- data2[,c(which(colnames(data2)=="age_class"),                      
@@ -189,16 +198,107 @@ data2.rf.melted2 <- ddply(data2.rf.melted2, c("age_class","sfg.bm"), summarise,
                           bm.sd=sd(biomass),
                           bm.se=bm.sd/sqrt(bm.n)) 
 
-data2.rf <- cbind(data2.rf.melted,data2.rf.melted2[,c(2:6)])
+data2.rf <- cbind(data2.rf.melted,data2.rf.melted2[,c(2:7)])
 
 # Barplots
 ggplot(data2.rf, aes(x=age_class, y=abc.mean, fill=sfg)) +  
-  geom_bar(stat="identity", position="dodge") + 
-  geom_errorbar(aes(ymin=abc.mean-abc.se, ymax=abc.mean+abc.se), position=position_dodge(0.9),width=0.2) +
-  mytheme
+  geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15) + 
+  geom_errorbar(aes(ymin=abc.mean-abc.se, ymax=abc.mean+abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+  ggtitle("Data 2nd Order") +
+  xlab("Age Class") + 
+  ylab("Abundance") +
+  ylim(-10,max(data2.rf$abc.mean+data2.rf$abc.se)) +
+  labs(fill="Functional Group") +
+  scale_fill_grey(labels=c("anecic","endogeic", "epigeic", "total")) +
+  scale_y_continuous(breaks=pretty_breaks(n=10)) +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
+  mytheme +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
+        legend.position=c(0.18,0.68))
 
 ```
 
+Version 3 with "3rd Order" data
+```{r}
+# create subset of real data2 with age_class, abundance (plus N) and biomass
+data3.raw.fig <- data3[,c(which(colnames(data3)=="age_class"),                      
+                        which(colnames(data3)=="anc"):which(colnames(data3)=="epi"),
+                        which(colnames(data3)=="N"),
+                        which(colnames(data3)=="anc.bm"):which(colnames(data3)=="epi.bm"),
+                        which(colnames(data3)=="N.bm"))]
+
+
+# melt frame for use in ggplot
+data3.rf.melted <- melt(data3.raw.fig, id.vars=c(1,6:9), variable="sfg", value.name="abundance")
+data3.rf.melted <- data3.rf.melted[,c(1,6,7)]
+data3.rf.melted <- ddply(data3.rf.melted, c("age_class","sfg"), summarise, 
+                          abc.n=length(abundance),
+                          abc.sum=sum(abundance),
+                          abc.mean=mean(abundance),
+                          abc.sd=sd(abundance),
+                          abc.se=abc.sd/sqrt(abc.n)) 
+
+data3.rf.melted2 <- melt(data3.raw.fig, id.vars=c(1,2:5), variable="sfg.bm", value.name="biomass")
+data3.rf.melted2 <- data3.rf.melted2[,c(1,6,7)]
+data3.rf.melted2 <- ddply(data3.rf.melted2, c("age_class","sfg.bm"), summarise, 
+                          bm.n=length(biomass),
+                          bm.sum=sum(biomass),
+                          bm.mean=mean(biomass),
+                          bm.sd=sd(biomass),
+                          bm.se=bm.sd/sqrt(bm.n)) 
+
+data3.rf <- cbind(data3.rf.melted,data3.rf.melted2[,c(2:7)])
+
+## Barplots ####
+
+# Abundance
+ggplot(data3.rf, aes(x=age_class, y=abc.mean, fill=sfg)) +  
+  geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15) + 
+  geom_errorbar(aes(ymin=abc.mean-abc.se, ymax=abc.mean+abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+  ggtitle("Data 3rd Order") +
+  xlab("Age Class") + 
+  ylab("Abundance") +
+  ylim(-10,max(data3.rf$abc.mean+data3.rf$abc.se)) +
+  labs(fill="Functional Group") +
+  scale_fill_grey(labels=c("anecic","endogeic", "epigeic", "total")) +
+  scale_y_continuous(breaks=pretty_breaks(n=10)) +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
+  mytheme +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
+        legend.position=c(0.18,0.68))
+
+
+# ggsave("Figure1.pdf", width=9, height=7, units="cm", useDingbats=FALSE)
+# ggsave("Figure1.png", width=9, height=7, units="cm")
+
+# Biomass
+ggplot(data3.rf, aes(x=age_class, y=bm.mean, fill=sfg)) +  
+  geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15) + 
+  geom_errorbar(aes(ymin=bm.mean-bm.se, ymax=bm.mean+bm.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+  ggtitle("Data 3rd Order") +
+  xlab("Age Class") + 
+  ylab("Biomass") +
+  ylim(-10,max(data3.rf$bm.mean+data3.rf$bm.se)) +
+  labs(fill="Functional Group") +
+  scale_fill_grey(labels=c("anecic","endogeic", "epigeic", "total")) +
+  scale_y_continuous(breaks=pretty_breaks(n=10)) +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
+  mytheme +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
+        legend.position=c(0.18,0.68)) 
+
+# ggsave("Figure2.pdf", width=9, height=7, units="cm", useDingbats=FALSE)
+# ggsave("Figure2.png", width=9, height=7, units="cm")
+#####
+```
+
+> **Why are the error bars becoming larger and larger with the Order of the dataset?**
+
+> One reason is that the standard error is the standard deviation divided by the squareroot of number of items.
+The latter decreases with increasing order of dataset:  
+The squareroot in 1st order is ``r sqrt(4*3*3)``  
+The squareroot in 2nd order is ``r sqrt(3*3)``  
+The squareroot in 3rd order is ``r sqrt(3)``   
 
 
 ## General linear Mixed Effects Models

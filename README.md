@@ -1,7 +1,7 @@
 ---
 title: "F2_EW_MainAnalysis_README"
 author: "Quentin Schorpp"
-date: "2015-04-16"
+date: "2015-04-17"
 output: md_document
 ---
 
@@ -45,24 +45,25 @@ Earthworm communities from fields of the perennial bioenergy crop *S. perfoliatu
 ## [5] LC_TIME=German_Germany.1252    
 ## 
 ## attached base packages:
-## [1] stats4    stats     graphics  grDevices utils     datasets  methods  
-## [8] base     
+## [1] grid      stats4    stats     graphics  grDevices utils     datasets 
+## [8] methods   base     
 ## 
 ## other attached packages:
-##  [1] reshape2_1.4.1    coefplot2_0.1.3.2 coda_0.17-1      
-##  [4] lme4_1.1-7        Rcpp_0.11.5       Matrix_1.2-0     
-##  [7] bbmle_1.0.17      glmmADMB_0.7.7    R2admb_0.7.13    
-## [10] MASS_7.3-40       ggplot2_1.0.1    
+##  [1] extrafont_0.17    scales_0.2.4      plyr_1.8.1       
+##  [4] reshape2_1.4.1    coefplot2_0.1.3.2 coda_0.17-1      
+##  [7] lme4_1.1-7        Rcpp_0.11.5       Matrix_1.2-0     
+## [10] bbmle_1.0.17      glmmADMB_0.7.7    R2admb_0.7.13    
+## [13] MASS_7.3-40       ggplot2_1.0.1    
 ## 
 ## loaded via a namespace (and not attached):
 ##  [1] cluster_2.0.1     colorspace_1.2-6  digest_0.6.8     
-##  [4] evaluate_0.6      formatR_1.1       grid_3.1.3       
+##  [4] evaluate_0.6      extrafontdb_1.0   formatR_1.1      
 ##  [7] gtable_0.1.2      htmltools_0.2.6   knitr_1.9        
 ## [10] labeling_0.3      lattice_0.20-31   mgcv_1.8-6       
 ## [13] minqa_1.2.4       munsell_0.4.2     nlme_3.1-120     
 ## [16] nloptr_1.0.4      numDeriv_2012.9-1 parallel_3.1.3   
-## [19] permute_0.8-3     plyr_1.8.1        proto_0.3-10     
-## [22] reshape_0.8.5     rmarkdown_0.5.1   scales_0.2.4     
-## [25] splines_3.1.3     stringr_0.6.2     tools_3.1.3      
-## [28] vegan_2.2-1       yaml_2.1.13
+## [19] permute_0.8-3     proto_0.3-10      reshape_0.8.5    
+## [22] rmarkdown_0.5.1   Rttf2pt1_1.3.3    splines_3.1.3    
+## [25] stringr_0.6.2     tools_3.1.3       vegan_2.2-1      
+## [28] yaml_2.1.13
 ```
