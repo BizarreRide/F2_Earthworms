@@ -39,6 +39,8 @@ source("Analysis/F2_EW_RequiredPackages.R")
 source("Data/GatherSource/coldiss.R")
 source("Data/GatherSource/panelutils.R")
 source("Data/GatherSource/ggplotTheme.R")
+
+MyNorm <- function(x) {(x - mean(x))/ sd(x)}
 ```
 
 
@@ -310,7 +312,15 @@ rm(data.raw.fig, data.rf, data.rf.melted, data.rf.melted2,
 
 ______________________________________________________________________________________________________________
 
-## General linear Mixed Effects Models
+## General linear Mixed Effects Models with 2nd order Data
+
+The thought about using 2nd order data instead of 3rd order data is that, besides the response variables, not other covaraites have been assessed at that level.....
+All covariates apply to the field level!!??
+
+
+
+
+## General linear Mixed Effects Models with 3rd order Data
 
 ### Data Pre-Processing  
 #### Standardize Explanatory Variables  
@@ -353,59 +363,73 @@ boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within s
      
 
 ```{r GLMM, cache=TRUE}
-M1 <- glmer(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M1)
-M2 <- glmer(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
+## from Zuur "A beginers Guide....", p.116 ff ####
 
-# from Zuur "A beginers Guide....", p.116 ff
+# linear regression model
 plot(data$age_class, data$anc, xlab="Age Class",ylab="anecic abundance")
 M0 <- lm(anc ~ age_class, data)
 abline(M0, lwd=3)
 summary(M0)
 
-env.chosen <- cbind(resid(M0),data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "dgN", "dgO","dsamcam")])
-
-melted_a <- melt(env.chosen, id.vars="resid(M0)")
-
-ggplot(melted_a, aes(value, y="resid(M0)")) +
-  geom_point() +
-  facet_grid(. ~ variable)
-
-par(mfrow=c(4,3))
-for (i in 1:12) {
-  plot(env.chosen[,i],env.chosen[,1], xlab=colnames(env.chosen)[i])
-}
-
-
-
-colnames(env.chosen)[i])
-dev.off()
-
-
 plot(data$age_class,resid(M0))
 plot(data$field,resid(M0))
-plot(env.chosen[,1],resid(M0))
-plot(env.chosen[,2],resid(M0))
-plot(env.chosen[,3],resid(M0))
-plot(env.chosen[,4],resid(M0))
-plot(env.chosen[,5],resid(M0))
-plot(env.chosen[,6],resid(M0))
 
+env.chosen <- cbind(resid(M0),data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "age_class", "dgO","dsamcam")])
 
+par(mfrow=c(4,3),
+    mar=c(3.8,4,1,3))
+for (i in 1:12) {
+  scatter.smooth(env.chosen[,i],env.chosen[,1], xlab=colnames(env.chosen)[i])
+}
+par(mfrow=c(1,1))
 
-env.chosen <- data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "dgN", "dgO","dsamcam")]
-op <- par(mfrow=c(1,1), pty="s")
-pairs(cbind(resid(M1),env.chosen), lower.panel=panel.cor, upper.panel=panel.smooth, method="pearson", diag.panel=panel.hist, main= "Bivariate Plots with Histograms and smooth curves\n(pearson)")
-par(op)
+par(mfrow=c(4,3),
+    mar=c(3.8,4,1,3))
+for (i in 1:12) {
+  scatter.smooth(env.chosen[,i],env.chosen[,2], xlab=colnames(env.chosen)[i])
+}
+par(mfrow=c(1,1))
 
+# Including field: This models has 5 Regression coefficients for age_class and 17 for field
 M1 <- lm(anc ~ age_class + field, data)
+summary(M1) # Coefficients: (4 not defined because of singularities)??? 
+            #  -> one of your variables is alinear combination of other explanatory variables or is constant.
+alias(M1)
+
+
 summary(aov(M1))
+plot(data$hum1, data$anc, xlab="Age Class",ylab="anecic abundance")
+abline(M1, lwd=3)
 
 
-plot(data$age_class, resid(M1))
 
 
-M2 <- lmer(anc ~ age_class + pH + (1|field.ID), data)
+# The Question is now what to do with the covariate field. We cannot ignore it, as the model without it contains residual patterns. But if we include th covariate field in the model, we use 17 additional regression parameters, and the model allows only for statements and predictions applying to thos 18 fields, not for fields in general. 
+````
+
+
+```{r glmm}
+M2 <- lmer(anc ~ age_class + scl.dsamcam + scl.ats1 +scl.hum1 + scl.pH + (1|field.ID), data)
+M2 <- lmer(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + scl.pH + (1|field.ID), data)
 summary(M2)
+
+E2 <- resid(M2)
+F2 <- fitted(M2)
+
+# fitted values as definde by the fixed part
+# gives only the effect of the intercept and covariates.
+
+Betas <- fixef(M2)
+X <- model.matrix(M2)
+FitManual <- X %*% Betas
+
+
+# Random effects
+RE <- ranef(M2)$field.ID$'(Intercept)'
+AllRE  <- RE[as.numeric(data$field.ID)]
+
+M1 <- glmer(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M1)
+M2 <- glmer(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
 
 M1 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.pH*scl.cn + scl.clay +(1|field.ID),data=data,family="poisson"); summary(M1)
 M2 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
