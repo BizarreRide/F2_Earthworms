@@ -315,6 +315,7 @@ rm(data.raw.fig, data.rf, data.rf.melted, data.rf.melted2,
 
 ______________________________________________________________________________________________________________
 
+
 ## General linear Mixed Effects Models with 2nd order Data
 
 The thought about using 2nd order data instead of 3rd order data is that, besides the response variables, not other covaraites have been assessed at that level.....
@@ -497,7 +498,6 @@ coefplot2(anc.best)
 ```
 
 
-
 ## General linear Mixed Effects Models with 3rd order Data
 
 ### Data Pre-Processing  
@@ -521,7 +521,6 @@ colnames(std.var) <- paste("scl", colnames(std.var), sep = ".") # rename columns
 data <- cbind(data, std.var)
 #----
 ```
-
 
 
 ### Anecic Abundance
@@ -616,8 +615,8 @@ for (i in 1:10){
 #################################################
 ````
 
-
-```{r GLMM, cache=TRUE}
+#### GLMM using glmmADMB
+```{r GLMM1, cache=TRUE}
 # Global Model
 data$age_class <- factor(data$age_class, ordered=FALSE)
 str(data)
@@ -632,7 +631,7 @@ summary(anc.best)
 ````
 
 
-```{r ModelValidation}
+```{r ModelValidation1}
 ## Model validation ####
 E1 <- resid(anc.best, type="pearson")
 F1 <- fitted(anc.best, type="response")
@@ -645,6 +644,7 @@ par(mfrow=c(3,3),
     mar=c(3.8,4,1,3))
 for (i in 1:7) {
   scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i])
+  abline(h=0, lty=2, col="red")
 }
 par(mfrow=c(1,1))
 
@@ -653,6 +653,7 @@ par(mfrow=c(3,3),
     mar=c(3.8,4,1,3))
 for (i in 1:8) {
   scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
+  abline(h=0, lty=2, col="red")
 }
 par(mfrow=c(1,1))
 
@@ -672,30 +673,32 @@ plot(data$dsamcam,predict(anc.best, type="response"))
 plot(data$ats1,predict(anc.best, type="response"))
 plot(data$hum1,predict(anc.best, type="response"))
 
-# Plots of Predicted Values
+# Plots of fitted Values
 par(mfrow=c(2,2))
 plot(data$age_class,F1)
 plot(data$dsamcam,F1)
 plot(data$ats1,F1)
 
 par(lo)
-plot(data$hum1,data$anc)
-abline(anc.best)
 ```
 
 
-
 #### Model Validation
-```{r ModelValidation,fig.width=8, fig.height=7}
+```{r ModelValidation2,fig.width=8, fig.height=7}
 # Model Validation 
 confint(anc.best)
 
+E <- resid(anc.best, type="pearson")
+
 par(mfrow=c(2,2))
 par(mar=c(5,5,2,3))
-plot(resid(anc.best)~fitted(anc.best)) 
-plot(fitted(anc.best) ~predict(anc.best, type="response")) 
-plot(predict(anc.best) ~predict(anc.best, type="response")) 
-plot(predict(anc.best, type="response") ~ data$anc)
+plot(E~fitted(anc.best), ylab="Pearson Residuals", xlab="Fitted values") 
+abline(h=0, lty=2)
+hist(E, main = "", breaks = 20, cex.lab = 1.5, xlab = "Pearson Residuals")
+plot(E ~ data$age_class, ylab="Pearson Residuals", xlab="Age Class")
+abline(h=0, lty=2)
+plot(E ~ data$ats1, ylab="Pearson Residuals", xlab="Age Class")
+abline(h=0, lty=2)
 ````
 
 
@@ -757,8 +760,6 @@ coefplot2(anc.best)
 ### GLMM according to Analysis of honey bee pollination data from Zuur "A Beginenrs Guide,.."
 
 ```{r GLMM22}
-
-
 xyplot(anc~samcam|age_class,
        xlab="Sampling Campaign", data=data2, col=1,
        ylab="Anecic Abundance", layout=c(3,2), groups=field.ID, type="l",
@@ -772,6 +773,7 @@ summary(M1)
 
 drop1(M1)
 
+# Poisson GLMM using glmer
 M1 <- glmer(anc ~ scl.dsamcam + age_class + (1|field.ID), data2, family=poisson)
 summary(M1)
 
@@ -781,7 +783,7 @@ p <- length(fixef(M1)) +1
 Overdispersion <- sum(E1^2)/(N-p)
 Overdispersion
 
-
+# Model Validation
 F1 <- fitted(M1, type="response")
 par(mfrow=c(2,2), mar=c(5,5,2,2))
 plot(x = F1, y=E1, xlab="Fitted values (type=response)", ylab="Pearson residuals")
@@ -792,6 +794,9 @@ boxplot(E1~age_class, data=data2, xlab="Age Class", ylab="Pearson residuals")
 abline(h=0, lty=2)
 boxplot(E1~field.ID, data=data2, xlab="field", ylab="Pearson residuals")
 abline(h=0, lty=2)
+
+
+## Poisson GLMM using JAGS #####
 
 X <- model.matrix(~scl.dsamcam + factor(age_class), data=data2)
 
@@ -860,6 +865,7 @@ J0 <- jags(data = win.data2,
            n.chains=3,
            n.burnin=25000,
            n.iter=35000)
+#####
 
 out <- J0$BUGSoutput
 MyBUGSChains(out, c(uNames("beta",6),"sigma.re"))
@@ -868,7 +874,20 @@ OUT1 <- MyBUGSOutput(out, c(uNames("beta",6),"sigma.re"))
 
 print(OUT1, digits=3)
 
+mean(out$sims.list$FitNew > out$sims.list$Fit)
+# 0.001666667
+# In all cases, the sum of squared residuals of the model fitted to the actual data differs from that of the simulated data; hence we have serious model mis-specification. Most likely we have overdispersion.
+Betas <- OUT1[1:6,1]
+a <- out$mean$a
+eta <- win.data2$X%*% Betas + as.vector(a[win.data2$re])
+mu <- exp(eta)
+E  <- out$mean$PRes
+sum(E^2) / (nrow(data2) - p)
 
+plot(mu,E)
+abline(h=0, lty=2)
+
+# Negative binomial GLMM using glmmADMB
 M2 <- glmmadmb(anc ~ scl.dsamcam + age_class + (1|field.ID), data2, family="nbinom")
 summary(M2)
 
@@ -877,7 +896,7 @@ p <- 6 +1 +1 # Number of betas +k +sigma
 Overdispersion2 <- sum(E2^2)/(N-p)
 Overdispersion
 
-
+## Negative binomial GLMM using JAGS ####
 F2 <- fitted(M2, type="response")
 par(mfrow=c(2,2), mar=c(5,5,2,2))
 plot(x = F2, y=E2, xlab="Fitted values (type=response)", ylab="Pearson residuals")
@@ -956,19 +975,107 @@ N0 <- jags(data = win.data2,
 
 N1 <- update(N0, n.iter = 20000)
 N2 <- update(N1, n.iter = 50000)
+#####
 
 out <- N2$BUGSoutput
 MyBUGSChains(out, c(uNames("beta",6),"sigma.re"))
 
 OUT1 <- MyBUGSOutput(out, c(uNames("beta",6),"sigma.re"))
 
-print(OUT1, digits=3)
+print(OUT1, digits=3) # the results of JAGS are similar to the summary output of glmmadmb
 
+
+# Overdispersion
+# We extract the posterios mean values of the Pearson residuals.
 E  <- out$mean$PRes
 p <- 6+1
 sum(E^2) / (nrow(data2) - p)
 
+# Another method of assessing overdispersion; via the bayesian p-value the chains of Fit and FitNEw are compared.
+# We count the number of times that the newly generated data provide a sum of squared pearson residuals that is larger than 
+# that of the observed data. An average of 0.5 means that the data is similar to the observed data, indicating that the model fits the data well
+# Values close to 0 or 1 would indicate problems
+
 mean(out$sims.list$FitNew > out$sims.list$Fit)
+# 0.0009733333
+#
+
+# Model Valdation
+#Model validation
+Betas <- OUT1[1:6,1]
+a     <- out$mean$a
+eta   <- win.data1$X %*% Betas + as.vector(a[win.data1$re])
+mu    <- exp(eta)
+
+par(mfrow = c(2,2), mar = c(5,5,2,2))
+plot(x = mu, y = E,
+     xlab = "Fitted values",
+     ylab = "Pearson resiuals",
+     cex.lab = 1.5)
+abline(h=0, lty = 2)
+     
+plot(x=data2$dsamcam, y = E,
+     xlab = "delta Sampling campaign (days)",
+     ylab = "Pearson resiuals",
+     cex.lab = 1.5)
+abline(h=0, lty = 2)
+
+boxplot(E ~ age_class, data = data2,
+     xlab = "Age_Class",
+     ylab = "Pearson resiuals",
+     cex.lab = 1.5)
+abline(h=0, lty = 2)
+
+boxplot(E ~ field.ID, data = data2,
+     xlab = "Field",
+     ylab = "Pearson resiuals",
+     cex.lab = 1.5)
+abline(h=0, lty = 2)
+
+
+MyData <- expand.grid(scl.dsamcam = seq(min(data2$scl.dsamcam),max(data2$scl.dsamcam),length = 10),
+                      age_class = levels(data2$age_class)) 
+Z <- model.matrix(~scl.dsamcam + age_class, data = MyData)
+MyData$eta <- Z %*% Betas
+MyData$mu  <- exp(MyData$eta)
+
+#And for the random effects:
+Betas <- OUT1[1:6,1]
+a <- out$mean$a
+eta <- win.data2$X %*% Betas 
+RE  <- a[win.data2$re]
+eta <- as.vector(eta) + RE
+mu  <- exp(eta)
+
+
+xyplot(anc ~ scl.dsamcam | age_class, 
+       xlab = list("Time (days)", cex = 1.5),
+       ylab = list("Number of anecic earthworms", cex = 1.5),
+       data = data2, layout = c(3,2),
+       type = "p", col = 1,
+       strip = strip.custom(bg = 'white',
+                            par.strip.text = list(cex = 1.2)),
+       scales = list(alternating = T,
+                     x = list(relation = "same"),
+                     y = list(relation = "same")),
+                     
+       panel = function(x,y, subscripts,...){
+         ID <- data2$age_class[subscripts][1]
+       	x1 <- MyData[data2$age_class == ID,"scl.dsamcam"]
+       	y1 <- MyData[data2$age_class == ID,"mu"]
+       	panel.lines(x1,y1, lwd = 5, col =1)
+       	panel.points(x,y, pch = 16, col = 1)
+       	
+       	xx1 <- data2$scl.dsamcam[subscripts]
+       	yy1 <- mu[subscripts]
+       	Hives <- data$field.ID[subscripts]
+       	NH <- unique(data2$field.ID)
+       	for (i in 1:4){
+       	panel.lines(xx1[data2$field.ID==NH[i]],
+       	            yy1[data2$field.ID==NH[i]], 
+       	            lwd = 1, col = 1)
+       }}             
+)
 
 
 ```
