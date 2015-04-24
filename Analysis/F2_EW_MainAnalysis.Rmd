@@ -320,19 +320,43 @@ ________________________________________________________________________________
 The thought about using 2nd order data instead of 3rd order data is that, besides the response variables, not other covaraites have been assessed at that level.....
 All covariates apply to the field level!!??
 
-```{r}
+```{r DataPreProcessing1}
+## Create variable d(delta)samcam as the time difference of each sampling date to the first date, that each field was sampled; first date is Zero for all fields. ####
 data2$dsamcam <- with(data2, round(c(rep(0,15),date[16:30]-date[0:15],date[31:45]-date[1:15]),0))
 
+## Standardize all explanatory variables ####
+
+# extract all numerical variables
+std.var <- data2[sapply(data2,is.numeric)]
+which(colnames(std.var)=="ACA")
+# exclude all response variables
+std.var <- std.var[,-c(25:59)]
+
+# standardize, each column is divided by their standard deviation, and the mean of each column is subtracted 
+std.var <- as.data.frame(scale(std.var, center=TRUE, scale=TRUE))
+colnames(std.var) <- paste("scl", colnames(std.var), sep = "_") # rename columns
+
+data2 <- cbind(data2, std.var)
+#----
+
+```
+
+
+### GLM approach
+```{r GLM_2ndOrder}
+
+# Model Formulation
 M1 <- glm(anc ~ age_class + dsamcam + age_class:dsamcam, family="poisson", data2)
 summary(M1)
 
 # Deviance
 logLik(M1) 
 
+# Fraction of explained variation in the response variable
 100*((M1$null.deviance-M1$deviance)/M1$null.deviance) # Fraction of explained variation in the response variable
 
 
-# Model validation
+### Model validation ####
 
 E1 <- resid(M1, type="pearson")
 F1 <- fitted(M1)
@@ -340,6 +364,7 @@ F1 <- fitted(M1)
 env1 <- cbind(E1, F1, data2[,c("anc", "age_class", "dsamcam")])
 env0 <- cbind(E1, F1,data2[,c("mc", "pH", "cn", "clay", "ats1", "ats2", "hum1","dgO")])
 
+# plot residual versus all covariates in the model
 par(mfrow=c(3,2),
     mar=c(3.8,4,1,3))
 for (i in 1:5) {
@@ -347,7 +372,7 @@ for (i in 1:5) {
 }
 par(mfrow=c(1,1))
 
-
+# plot residuals versus all covariates NOT in the model
 par(mfrow=c(4,3),
     mar=c(3.8,4,1,3))
 for (i in 1:10) {
@@ -360,40 +385,50 @@ N <- nrow(data2)
 p <- length(coef(M1))
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
+#-----
 
 ```
 
-```{r}
-M1 <- glmer.nb(anc ~ age_class + I(ats1^2) + I(hum1^2) + (1|samcam), data2)
+
+### GLMM approach
+```{r GLMM_2ndOrder}
+
+# Model Forumlation
+M1 <- glmmadmb(anc ~ age_class + scl_pH + scl_cn + scl_mc + I(scl_ats1^2) + I(scl_hum1^2) + (1|samcam), family="nbinom",data2)
 summary(M1)
+
+dredge(M1)
+
+M1 <-  glmmadmb(anc ~ age_class + scl_cn + I(scl_ats1^2) + (1|samcam), family="nbinom",data2)
+M1 <-  glmer.nb(anc ~ age_class + scl_cn + I(scl_ats1^2) + (1|samcam),data2)
 
 # Deviance
 logLik(M1) 
 
-100*((M1$null.deviance-M1$deviance)/M1$null.deviance) # Fraction of explained variation in the response variable
+anc.best <- M1
 
+library(lsmeans)
+lsmeans(anc.best, pairwise~age_class*samcam, adjust="tukey") 
 
-# Model validation
-
-which.max(data2$mc)
-
+## Model validation ####
 E1 <- resid(M1, type="pearson")
 F1 <- fitted(M1)
 
-env1 <- cbind(E1, F1, data2[,c("anc", "age_class", "dsamcam")])
-env0 <- cbind(E1, F1,data2[,c("mc", "pH", "cn", "clay", "ats1", "ats2", "hum1","dgO")])
+env1 <- cbind(E1, F1, data2[,c("anc", "age_class", "cn", "ats1","dsamcam")])
+env0 <- cbind(E1, F1,data2[,c("mc", "pH", "clay", "ats2", "hum1","dgO")])
 
-par(mfrow=c(3,2),
+# plot residual versus all covariates in the model
+par(mfrow=c(3,3),
     mar=c(3.8,4,1,3))
-for (i in 1:5) {
+for (i in 1:7) {
   scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i])
 }
 par(mfrow=c(1,1))
 
-
-par(mfrow=c(4,3),
+# plot residual versus all covariates NOT in the model
+par(mfrow=c(3,3),
     mar=c(3.8,4,1,3))
-for (i in 1:10) {
+for (i in 1:8) {
   scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
 }
 par(mfrow=c(1,1))
@@ -404,10 +439,63 @@ p <- length(coef(M1))+1 # The Plus "+1" used for determining the number of param
                         # binomial distribution
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
-
-drop1(M1, test="Chi")
-
+#----
 ```
+
+#### Extract Predictions and Standard errors for predictions
+```{r ExtractPredicitons}
+# anc.1.mcmc = glmmadmb(anc ~ age_class + (1|field) + (1|samcam),data2=ew.data2,family="nbinom", zeroInflation=TRUE, mcmc = TRUE, mcmc.opts = mcmcControl(mcmc = 10000))
+
+td.anc=expand.grid(age_class=levels(data2$age_class),
+                   scl.cn = mean(data2$scl.dsamcam),
+                   scl.ats1 = max(data2$scl.ats1))
+
+pred.anc <- cbind(td.anc,
+                  predict(anc.best, td.anc, type="link", se.fit=TRUE),
+                  anc.response=predict(anc.best, td.anc, type="response"))
+
+pred.anc <- within(pred.anc, {
+  AIC <- AIC(anc.best)
+  Rrandom <- summary(lm(fitted(anc.best)~ data2$anc))$adj.r.squared
+  Rsquared <- summary(lm(predict(anc.best, type="response")~ data2$anc))$adj.r.squared
+  anc <- 4*exp(fit)
+  LL <- 4*exp(fit - 1.96 * se.fit)   
+  UL <- 4*exp(fit + 1.96 * se.fit)  
+})
+head(pred.anc)
+range(data2$anc)
+
+stat.anc = round(summary(anc.best)$coefficients[, c(3,4)],4)
+coef.anc = coeftab(anc.best)
+
+anc.env <- glmmadmb(anc ~ scl.dsamcam + scl.dgO + (1|field.ID),data2=data2,family="poisson")
+anc.pvalue <- anova(anc.env, anc.best)$"Pr(>Chi)"
+
+pred.Stat.anc = cbind(stat.anc,coef.anc,LogLikP=anc.pvalue[2],fixef=fixef(anc.best))
+````
+
+```{r}
+#write.table(pred.Stat.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(pred.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+```
+
+#### Prediciton plots
+```{r AncPredictionPlot}
+library(ggplot2)
+
+ggplot(pred.anc, aes(x=age_class, y=anc)) + 
+  geom_bar(stat="identity", width=0.5) +
+  geom_line(aes(group=anc))+  
+  geom_errorbar(aes(ymin=LL, ymax=UL), width=.1) +
+  geom_line()
+
+
+par(mfrow=c(1,1))
+par(mar=c(3,3,3,3))
+par(oma=c(1,1,1,1))
+coefplot2(anc.best)    
+```
+
 
 
 ## General linear Mixed Effects Models with 3rd order Data
@@ -438,7 +526,6 @@ data <- cbind(data, std.var)
 
 ### Anecic Abundance
 
-
 ```{r BoxPlots,echo=FALSE}
 
 # Variability within sites
@@ -451,19 +538,31 @@ boxplot(anc~samcam, data,col="grey", main="Variability within sampling campaigns
 boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
 ```
      
-
-```{r GLMM, cache=TRUE}
+#### From simple linear model to more complexity
+```{r SimpleREgression, cache=TRUE}
 ## from Zuur "A beginers Guide....", p.116 ff ####
 
-# linear regression model
+# Simple linear regression model
 plot(data$age_class, data$anc, xlab="Age Class",ylab="anecic abundance")
 M0 <- lm(anc ~ age_class, data)
 summary(M0)
+summary(aov(M0))
 
-# Model validation:
+## Model validation: ####
+
 # Homogeneity of variance
 par(mfrow=c(2,2))
 plot(M0)
+par(lo)
+
+# normality of residuals
+E0 <- resid(M0)
+hist(E0, 
+     main = "", 
+     breaks = 20, 
+     cex.lab = 1.5, 
+     xlab = "Residuals")
+
 
 # Independence
 # There is inherent "dependency due to experimental design"; all samples with the same field.ID are intraclass correlated; samples taken on one field again on each sampling campaign are pseudoreplicated (Intrclass correlation for all samples from one sampling campaign??)
@@ -474,125 +573,114 @@ plot(M0)
 
 par(lo)
 plot(data$age_class,resid(M0))
+plot(data$samcam,resid(M0))
+abline(h = 0, lty = 2)
 plot(data$field,resid(M0))
+abline(h = 0, lty = 2)
 
-env.chosen <- cbind(resid(M0),data[,c("anc", "mc", "pH", "cn", "clay", "ats1", "ats2", "hum1", "age_class", "dgO","dsamcam")])
 
-par(mfrow=c(4,3),
-    mar=c(3.8,4,1,3))
-for (i in 1:12) {
-  scatter.smooth(env.chosen[,i],env.chosen[,1], xlab=colnames(env.chosen)[i])
-}
-par(mfrow=c(1,1))
-
-par(mfrow=c(4,3),
-    mar=c(3.8,4,1,3))
-for (i in 1:12) {
-  scatter.smooth(env.chosen[,i],env.chosen[,2], xlab=colnames(env.chosen)[i])
-}
-par(mfrow=c(1,1))
-
-# Including field: This models has 5 Regression coefficients for age_class and 17 for field
+# Including field: This model has 5 Regression coefficients for age_class and 17 for field
 M1 <- lm(anc ~ age_class + field, data)
 summary(M1) # Coefficients: (4 not defined because of singularities)??? 
             #  -> one of your variables is alinear combination of other explanatory variables or is constant.
-alias(M1)
+            alias(M1)
 
-
-summary(aov(M1))
-plot(data$hum1, data$anc, xlab="Age Class",ylab="anecic abundance")
-abline(M1, lwd=3)
-
-
+par(mfrow=c(2,2))
+plot(M1)
 
 
 # The Question is now what to do with the covariate field. We cannot ignore it, as the model without it contains residual patterns. But if we include th covariate field in the model, we use 17 additional regression parameters, and the model allows only for statements and predictions applying to thos 18 fields, not for fields in general. 
+
+#################################################
+#Figure 1.3
+par(mfrow = c(1,1), mar = c(5,5,3,2))
+plot(x = as.numeric(data$age_class), 
+     y = data$anc,
+     xlab = "age_class",
+     ylab = "Anecic abundance",
+     cex.lab = 1.5,
+     pch = 1,
+     ylim = c(-10, 60))
+abline(M0, lwd = 5)
+abline(h = 0, lty = 2)
+
+range(data$age_class)
+md <- seq(1, 5, length = 10)
+
+Beta <- coef(M0)
+for (i in 1:10){
+  mu <- Beta[1] + Beta[2] * md[i]
+	yi <- rnorm(100, mean = mu, sd = summary(M0)$sigma) # sigma = residual standard error
+	points(jitter(rep(md[i], 100)), jitter(yi), col = grey(0.5), pch = 16, cex = 1)
+}
+#################################################
 ````
 
 
-```{r glmm}
-M2 <- lmer(anc ~ scl.pH + (1|field.ID), data)
-M2 <- lmer(anc ~ age_class + scl.dsamcam + scl.ats1 +scl.hum1 + scl.pH + (1|field.ID), data)
-M2 <- lmer(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + scl.pH + (1|field.ID), data)
+```{r GLMM, cache=TRUE}
+# Global Model
+data$age_class <- factor(data$age_class, ordered=FALSE)
+str(data)
+
+M2 <- glmmadmb(anc ~ age_class*scl.dsamcam + I(scl.mc^2) + scl.pH*scl.cn + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID),data=data,family="poisson")
 summary(M2)
 
-X   <- model.matrix(~ scl.pH, data)
-Fit <- X %*% fixef(M2)
+dredge(M2)
 
-par(mfrow = c(1, 2), mar = c(5,5,2,2))
-plot(x = data$scl.pH, 
-     y = data$anc,
-     xlab = "pH value (scaled)",
-     ylab = "Anecic Abundance",
-     cex.lab = 1.5, pch = 1)
-lines(data$pH, Fit, lwd = 5, col="red")
+anc.best <- glmmadmb(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID),data=data,family="poisson")
+summary(anc.best)
+````
 
 
+```{r ModelValidation}
+## Model validation ####
+E1 <- resid(anc.best, type="pearson")
+F1 <- fitted(anc.best, type="response")
 
+env1 <- cbind(E1, F1, data[,c("anc", "age_class", "dsamcam", "ats1", "hum1")])
+env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "dgO")])
 
-E2 <- resid(M2)
-F2 <- fitted(M2)
-
-# fitted values as definde by the fixed part
-# gives only the effect of the intercept and covariates.
-
-Betas <- fixef(M2)
-X <- model.matrix(M2)
-FitManual <- X %*% Betas
-
-
-# Random effects
-RE <- ranef(M2)$field.ID$'(Intercept)'
-AllRE  <- RE[as.numeric(data$field.ID)]
-
-M1 <- glmer(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M1)
-M2 <- glmer(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
-
-M1 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.mc*scl.cn + scl.ats2 + scl.pH*scl.cn + scl.clay +(1|field.ID),data=data,family="poisson"); summary(M1)
-M2 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson"); summary(M2)
-
-*****************************************************************************************************************************
-M2 <- glmmadmb(anc ~ age_class*scl.dsamcam + scl.mc + scl.pH*scl.cn + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID),data=data,family="poisson")
-summary(M2)
-
-E1 <- resid(M2, type="pearson")
-F1 <- fitted(M2)
-
-env1 <- cbind(E1, F1, data[,c("anc", "age_class", "dsamcam")])
-env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats1", "ats2", "hum1","dgO")])
-
-par(mfrow=c(3,2),
+# plot residual versus all covariates in the model
+par(mfrow=c(3,3),
     mar=c(3.8,4,1,3))
-for (i in 1:5) {
+for (i in 1:7) {
   scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i])
 }
 par(mfrow=c(1,1))
 
-
-par(mfrow=c(4,3),
+# plot residual versus all covariates NOT in the model
+par(mfrow=c(3,3),
     mar=c(3.8,4,1,3))
-for (i in 1:10) {
+for (i in 1:8) {
   scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
 }
 par(mfrow=c(1,1))
 
 # Overdispersion
 N <- nrow(data)
-p <- length(coef(M2))+1 # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative 
+p <- length(coef(anc.best))+1 # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative 
                         # binomial distribution
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
+#####
 
 
-dredge(M2)
+# Plots of Predicted Values
+par(mfrow=c(2,2))
+plot(data$age_class,predict(anc.best, type="response"))
+plot(data$dsamcam,predict(anc.best, type="response"))
+plot(data$ats1,predict(anc.best, type="response"))
+plot(data$hum1,predict(anc.best, type="response"))
 
-plot(data$clay,resid(M1))
-plot(data$pH,resid(M1))
-plot(data$scl.dsamcam,resid(M1))
-plot(data$age_class,predict(M1, type="response"))
+# Plots of Predicted Values
+par(mfrow=c(2,2))
+plot(data$age_class,F1)
+plot(data$dsamcam,F1)
+plot(data$ats1,F1)
 
-AICtab(M1,M2)
-anc.best <- M2
+par(lo)
+plot(data$hum1,data$anc)
+abline(anc.best)
 ```
 
 
@@ -601,6 +689,7 @@ anc.best <- M2
 ```{r ModelValidation,fig.width=8, fig.height=7}
 # Model Validation 
 confint(anc.best)
+
 par(mfrow=c(2,2))
 par(mar=c(5,5,2,3))
 plot(resid(anc.best)~fitted(anc.best)) 
@@ -615,9 +704,13 @@ plot(predict(anc.best, type="response") ~ data$anc)
 # anc.1.mcmc = glmmadmb(anc ~ age_class + (1|field) + (1|samcam),data=ew.data,family="nbinom", zeroInflation=TRUE, mcmc = TRUE, mcmc.opts = mcmcControl(mcmc = 10000))
 
 td.anc=expand.grid(age_class=levels(data$age_class),
-              scl.dsamcam = mean(data$scl.dsamcam),
-               scl.dgO = mean(data$scl.dgO))         
-pred.anc <- cbind(td.anc,predict(anc.best, td.anc, type="link", se.fit=TRUE),anc.response=predict(anc.best, td.anc, type="response"))
+                   scl.dsamcam = mean(data$scl.dsamcam),               
+                   scl.hum1 = max(data$scl.hum1),
+                   scl.ats1 = max(data$scl.ats1))
+
+pred.anc <- cbind(td.anc,
+                  predict(anc.best, td.anc, type="link", se.fit=TRUE),
+                  anc.response=predict(anc.best, td.anc, type="response"))
 
 pred.anc <- within(pred.anc, {
   AIC <- AIC(anc.best)
@@ -661,7 +754,224 @@ par(oma=c(1,1,1,1))
 coefplot2(anc.best)    
 ```
 
+### GLMM according to Analysis of honey bee pollination data from Zuur "A Beginenrs Guide,.."
 
+```{r GLMM22}
+
+
+xyplot(anc~samcam|age_class,
+       xlab="Sampling Campaign", data=data2, col=1,
+       ylab="Anecic Abundance", layout=c(3,2), groups=field.ID, type="l",
+       strip=strip.custom(bg="white", par.strip.text = list(cex=1.2)),
+       scales=list(alternating=T, x=list(relation="same"), y=list(relation="same")))
+
+data2$age_class <- factor(data2$age_class, ordered=FALSE)
+
+M1 <- glmer(anc ~ scl.dsamcam*age_class + (1|field.ID), data2, family=poisson)
+summary(M1)
+
+drop1(M1)
+
+M1 <- glmer(anc ~ scl.dsamcam + age_class + (1|field.ID), data2, family=poisson)
+summary(M1)
+
+E1 <- resid(M1, type="pearson")
+N <- nrow(data2)
+p <- length(fixef(M1)) +1 
+Overdispersion <- sum(E1^2)/(N-p)
+Overdispersion
+
+
+F1 <- fitted(M1, type="response")
+par(mfrow=c(2,2), mar=c(5,5,2,2))
+plot(x = F1, y=E1, xlab="Fitted values (type=response)", ylab="Pearson residuals")
+abline(h=0, lty=2)
+plot(x=data2$dsamcam, y=E1, xlab="Sampling Campaign", ylab="Pearson residuals")
+abline(h=0, lty=2)
+boxplot(E1~age_class, data=data2, xlab="Age Class", ylab="Pearson residuals")
+abline(h=0, lty=2)
+boxplot(E1~field.ID, data=data2, xlab="field", ylab="Pearson residuals")
+abline(h=0, lty=2)
+
+X <- model.matrix(~scl.dsamcam + factor(age_class), data=data2)
+
+K <- ncol(X)
+Nre <- length(unique(data2$field.ID))
+win.data2 <- list(Y=data2$anc,
+                  X=X,
+                  N=nrow(data2),
+                  re=data2$field.ID,
+                  b0=rep(0,K),
+                  B0=diag(0.0001,K),
+                  a0=rep(0,Nre),
+                  A0=diag(Nre))
+
+sink("GLMM.txt")
+cat("
+    model{
+    #1. Diffuse priors for regression parameters
+    beta ~ dmnorm(b0[], B0[,])
+    
+    #Diffuse priors for random effect field.ID
+    a ~ dmnorm(a0, tau.re * A0[,])
+    num ~ dnorm(0,0.0016)
+    denom ~ dnorm(0,1)
+    sigma.re <- abs(num/denom)
+    tau.re <- 1/(sigma.re*sigma.re)
+    
+    #2. Likelihood
+    for (i in 1:N) {
+          Y[i] ~ dpois(mu[i])
+    log(mu[i]) <- eta[i]
+    eta[i] <- inprod(beta[], X[i,]) + a[re[i]]
+    
+    #3. Discrepancy measures
+    YNew[i] ~ dpois(mu[i])
+    ExpY[i] <- mu[i]
+    VarY[i] <- mu[i]
+    PRes[i] <- (Y[i] - ExpY[i]) / sqrt(VarY[i])
+    PResNew[i] <- (YNew[i] - ExpY[i]) / sqrt(VarY[i])
+    D[i] <- pow(PRes[i],2)
+    DNew[i] <- pow(PResNew[i],2)
+    }
+    
+    beta65 <- beta[6] - beta[5]
+    Fit <- sum(D[1:N])
+    FitNew <- sum(DNew[1:N])
+        }
+    ", fill=TRUE)
+sink()
+
+inits1 <- function() {
+  list(beta= rnorm(K,0,0.01),
+        a=rnorm(Nre, 0, 1),
+        num=runif(1,0,25),
+        denom=runif(1,0,1)
+         )
+}
+
+params1 <- c("beta","a","sigma.re","PRes","Fit","FitNew","beta65")
+
+J0 <- jags(data = win.data2,
+           inits=inits1,
+           parameters=params1,
+           model.file="GLMM.txt",
+           n.thin=10,
+           n.chains=3,
+           n.burnin=25000,
+           n.iter=35000)
+
+out <- J0$BUGSoutput
+MyBUGSChains(out, c(uNames("beta",6),"sigma.re"))
+
+OUT1 <- MyBUGSOutput(out, c(uNames("beta",6),"sigma.re"))
+
+print(OUT1, digits=3)
+
+
+M2 <- glmmadmb(anc ~ scl.dsamcam + age_class + (1|field.ID), data2, family="nbinom")
+summary(M2)
+
+E2 <- resid(M2, type="pearson")
+p <- 6 +1 +1 # Number of betas +k +sigma
+Overdispersion2 <- sum(E2^2)/(N-p)
+Overdispersion
+
+
+F2 <- fitted(M2, type="response")
+par(mfrow=c(2,2), mar=c(5,5,2,2))
+plot(x = F2, y=E2, xlab="Fitted values (type=response)", ylab="Pearson residuals")
+abline(h=0, lty=2)
+plot(x=data2$dsamcam, y=E2, xlab="Sampling Campaign", ylab="Pearson residuals")
+abline(h=0, lty=2)
+boxplot(E2~age_class, data=data2, xlab="Age Class", ylab="Pearson residuals")
+abline(h=0, lty=2)
+boxplot(E2~field.ID, data=data2, xlab="field", ylab="Pearson residuals")
+abline(h=0, lty=2)
+
+sink("GLMM_NB.txt")
+cat("
+    model{
+    #1. Diffuse priors for regression parameters
+    beta ~ dmnorm(b0[], B0[,])
+    
+    #Diffuse priors for random effect field.ID
+    a ~ dmnorm(a0, tau.re * A0[,])
+    num ~ dnorm(0,0.0016)
+    denom ~ dnorm(0,1)
+    sigma.re <- abs(num/denom)
+    tau.re <- 1/(sigma.re*sigma.re)
+    
+    #Prior for size
+    numS ~ dnorm(0,0.0016)
+    denomS ~ dnorm(0,1)
+    size <- abs(nums/denomS)
+    
+    
+    #2. Likelihood
+    for (i in 1:N) {
+          Y[i] ~ dnegbin(p[i], size)
+    p[i]  <- size/(size+mu[i])
+    log(mu[i]) <- eta[i]
+    eta[i] <- inprod(beta[], X[i,]) + a[re[i]]
+    
+    #3. Discrepancy measures
+    YNew[i] ~ dpois(mu[i])
+    ExpY[i] <- mu[i]
+    VarY[i] <- mu[i] + pow(mu[i],2) / size
+    PRes[i] <- (Y[i] - ExpY[i]) / sqrt(VarY[i])
+    PResNew[i] <- (YNew[i] - ExpY[i]) / sqrt(VarY[i])
+    D[i] <- pow(PRes[i],2)
+    DNew[i] <- pow(PResNew[i],2)
+    }
+    
+    beta65 <- beta[6] - beta[5]
+    Fit <- sum(D[1:N])
+    FitNew <- sum(DNew[1:N])
+        }
+    ", fill=TRUE)
+sink()
+
+inits2 <- function() {
+  list(beta= rnorm(K,0,0.01),
+        a=rnorm(Nre, 0, 1),
+        num=runif(1,0,25),
+        denom=runif(1,0,1),
+        numS = rnorm(1,0,25),
+        denomS = rnorm(1,0,1)
+         )
+}
+
+params1 <- c("beta","a","sigma.re","PRes","Fit","FitNew","beta65")
+
+
+N0 <- jags(data = win.data2,
+           inits=inits1,
+           parameters=params1,
+           model.file="GLMM.txt",
+           n.thin=10,
+           n.chains=3,
+           n.burnin=25000,
+           n.iter=30000)
+
+N1 <- update(N0, n.iter = 20000)
+N2 <- update(N1, n.iter = 50000)
+
+out <- N2$BUGSoutput
+MyBUGSChains(out, c(uNames("beta",6),"sigma.re"))
+
+OUT1 <- MyBUGSOutput(out, c(uNames("beta",6),"sigma.re"))
+
+print(OUT1, digits=3)
+
+E  <- out$mean$PRes
+p <- 6+1
+sum(E^2) / (nrow(data2) - p)
+
+mean(out$sims.list$FitNew > out$sims.list$Fit)
+
+
+```
 
 
 # Results
