@@ -14,7 +14,7 @@ library(coefplot2)
 library(R2jags)
 
 
-
+library(multcomp)
 library(lattice)
 library(ggplot2)
 library(reshape2)
