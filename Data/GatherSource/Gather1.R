@@ -45,6 +45,7 @@ dim(data)
 # calculate soil functional groups, abundances
 data$anc <- rowSums(data[,c("LTR", "ALO")])
 data$endo <- rowSums(data[,c("ARO", "ACA", "ACH", "END","OCY","OLA")])
+#data$endo2 <- rowSums(data[,c("ARO", "ACA", "ACH","OCY","OLA")])
 data$epi <- rowSums(data[, c("LRU", "LCA")])
 
 

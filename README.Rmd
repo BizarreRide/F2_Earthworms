@@ -19,17 +19,20 @@ Earthworm communities from fields of the perennial bioenergy crop *S. perfoliatu
       * F2_EW_Data.xlsx - Excel spreadsheet for porucing .txt files and subsets
       
 **Data/GatherSource:** Data Processing 
-                    Files:
+      Files:
                     
-                    * Gather1.R - Summing up for functional groups; 
-                                  Calculation of Biodiversity Indices;
-                                  1rst Order Data [180 rows]
+      * Gather1.R - Summing up for functional groups; 
+                    Calculation of Biodiversity Indices;
+                    1rst Order Data [180 rows]
+      * Gather2.R - 
+      * Gather3.R - 
+      * WaterContent.R - 
                                   
                     
 **Analysis:** Main Analysis
-           Files:
+      Files:
            
-           *F2_EW_MainAnalysis.Rmd - Analysis of earthworm abundances and biomass using glmm
+      *F2_EW_MainAnalysis.Rmd - Analysis of earthworm abundances and biomass using glmm
 
 
 
