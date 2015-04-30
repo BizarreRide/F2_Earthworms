@@ -1,0 +1,62 @@
+---
+title: "F1 Q & A"
+author:
+  - name: Quentin Schorpp
+    email: quentin.schorpp@ti.bund.de
+date: "`r Sys.Date()`"
+e-mail: 
+output: 
+      html_document:
+          toc: true
+          toc_depth: 2
+          number_sections: true
+          fig_caption: true
+          theme: cerulean
+          highlight: haddock
+---
+```{r SetGlobalOptions, include=FALSE}
+knitr::opts_chunk$set(fig.align="center",
+                      message=FALSE,
+                      error=FALSE,
+                      warning=FALSE,
+                      echo=FALSE)
+
+options(scipen=1, digits=2)
+```
+
+
+# Question and Answers
+
+## 1. The use of ordered factors:
+
+* How is it possible to have ordered factors with interactions with non-ordered factors?
+* How is it possible to do post-Hoc comparisons with ordred factors?
+* What is the theory behind ordered factors in glmm?
+
+## 2. Exploratory data Analysis
+
+* Which plots are necessary?
+* Why are the error bars becoming larger and larger with the Order of the dataset?
+* Assessing variability of random effects, from where have i got this??
+
+## 3. Modeling
+### 3.1 Model Validation
+
+* Which plots are necessary for model validation?
+* Which tests are necessary for model validation?
+* When do i know, that the model is successfully validated?
+
+### 3.2 Model Output
+
+* where is the difference between poisson glmer() and glmmadmb() ?
+* How can i produce predicition plots for continous covariates disregarding the fators??
+* What are the important "things" to report?
+
+## 4. Project structure/Reproducible research
+
+* How should the Main Analysis file be organised?
+* Should the Main Analysis file be a RMD file?
+
+
+
+

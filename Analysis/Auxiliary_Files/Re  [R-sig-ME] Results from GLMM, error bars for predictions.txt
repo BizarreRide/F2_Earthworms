@@ -1,0 +1,296 @@
+
+Betreff:
+Re: [R-sig-ME] Results from GLMM, error bars for predictions
+Von:
+Thierry Onkelinx <thierry.onkelinx@inbo.be>
+Datum:
+27.04.2015 11:48
+An:
+quentin.schorpp@ti.bund.de
+Kopie (CC):
+"r-sig-mixed-models@r-project.org" <r-sig-mixed-models@r-project.org>
+
+Dear Quentin,
+
+IMHO, errorbars are more important than p-values. So yes, you need to present them. Here is an example
+
+library(glmmADMB)
+om <- glmmadmb(SiblingNegotiation~ FoodTreatment * SexParent +(1|Nest)+offset(log(BroodSize)),zeroInflation=TRUE,family="nbinom",data=Owls)
+newdata <- expand.grid(
+  FoodTreatment = unique(Owls$FoodTreatment),
+  SexParent = unique(Owls$SexParent),
+  BroodSize = 4
+)
+newdata <- cbind(newdata, predict(om, newdata = newdata, interval = "confidence"))
+
+library(ggplot2)
+ggplot(newdata, aes(x = FoodTreatment, colour = SexParent, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + geom_errorbar(position = position_dodge(1)) + geom_point(position = position_dodge(1))
+
+Best regards,
+
+ir. Thierry Onkelinx
+Instituut voor natuur- en bosonderzoek / Research Institute for Nature and Forest
+team Biometrie & Kwaliteitszorg / team Biometrics & Quality Assurance
+Kliniekstraat 25
+1070 Anderlecht
+Belgium
+
+To call in the statistician after the experiment is done may be no more than asking him to perform a post-mortem examination: he may be able to say what the experiment died of. ~ Sir Ronald Aylmer Fisher
+The plural of anecdote is not data. ~ Roger Brinner
+The combination of some data and an aching desire for an answer does not ensure that a reasonable answer can be extracted from a given body of data. ~ John Tukey
+
+2015-04-27 11:30 GMT+02:00 Quentin Schorpp <quentin.schorpp@ti.bund.de>:
+
+    Hello,
+
+    Thank you for writing,
+
+    I tried what you said, but simple addition of "offset(log(0.25))" did not work. Hence I created a factor "area" expressed as m² with the value 0.25 for all observations:
+     data$area <- rep(0.25, 180)
+    and added offset(log(area)) to the model formula.
+
+    Ok, plotting the predicted values for all relevant combinations of the fixed effects was also my intention. However, the problem with the errorbars occured. Or is it a faulty assumption of mine, that plots of predicted values need error-bars?
+
+    I'm sorry, i recognized that the answer was only adressed to you, after i send the mail. Then i send it again to the Mailing List, i hope it won't get to chaotic right now. Now i used "answer all"
+
+    kind regards
+
+
+
+
+    Am 27.04.2015 um 10:50 schrieb Thierry Onkelinx:
+>     Dear Quentin,
+>
+>     Please keep the mailing list in cc.
+>
+>     Dropping non significant terms from an ordered factor is not ok. That would change the interpretation of the factor. You wouldn't drop non significant levels of an unordered factor either.
+>
+>     Ben's solution is about multiple comparisons with random (and fixed) effects. You're only dealing with multiple comparisons with fixed effects. So glht() will do the trick.
+>
+>     Try plotting the predicted values for all relevant combinations of the fixed effects. I find that easier to interpret than just a bunch of coefficients.
+>
+>     Best regards,
+>
+>
+>     ir. Thierry Onkelinx
+>     Instituut voor natuur- en bosonderzoek / Research Institute for Nature and Forest
+>     team Biometrie & Kwaliteitszorg / team Biometrics & Quality Assurance
+>     Kliniekstraat 25
+>     1070 Anderlecht
+>     Belgium
+>
+>     To call in the statistician after the experiment is done may be no more than asking him to perform a post-mortem examination: he may be able to say what the experiment died of. ~ Sir Ronald Aylmer Fisher
+>     The plural of anecdote is not data. ~ Roger Brinner
+>     The combination of some data and an aching desire for an answer does not ensure that a reasonable answer can be extracted from a given body of data. ~ John Tukey
+>
+>     2015-04-27 9:30 GMT+02:00 Quentin Schorpp <quentin.schorpp@ti.bund.de>:
+>
+>         Dear Thierry,
+>
+>         thank you very much for your advice, i didn't hear about the offset() argument, yet. I'll try this immidiately.
+>         My first intention was, that the large error bars are due to the high variability and the low number of replicates (3), which stays true, i think. The point was, that i just couldn't explain, why the output was so weird, despite that the model stated significance and 0 was not within the confidence intervals.
+>         Now, it makes me confident to have the advice of using glht from you. I was kind of  unsecure, regarding the glht procedure, because i read this post on stack overflow by Ben Bolker:
+>         http://stackoverflow.com/questions/25949701/post-hoc-test-in-generalised-linear-mixed-models-how-to-do
+>
+>         Next I'll give up treating age_class as an ordered factor, although i found the idea quite interesting.
+>         Do you know where to get information about using ordered factors in a glmm?
+>         The output was not significant for the cubic term in my case, and i asked myself if i could/should skip it from the model.
+>
+>         Probably i could use samplingCampaign as ordered factor.
+>
+>         One thing I'm still interested in, is a tutorial that shows how to present results from more than one univariate analysis in a way to have it ready for publication.
+>         In my opinion eyerthing, even in the books, is about modeling procedure, validation, cryptic names of important coefficients. I know cooking with an 0815 recipe is dangerous, but that's not what I'm looking for.
+>
+>         Thank you again for your help!!
+>         Quentin
+>
+>
+>         Am 26.04.2015 um 20:37 schrieb Thierry Onkelinx:
+>>         Dear Quentin,
+>>
+>>         - You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
+>>         - I'd rather treat samplingCamping as a factor.
+>>         - You can get post hoc comparisons with the multcomp package. See the example below.
+>>
+>>         library(glmmADMB)
+>>         Owls$Interaction <- interaction(Owls$FoodTreatment, Owls$SexParent)
+>>         om <- glmmadmb(SiblingNegotiation~ Interaction+(1|Nest)+offset(log(BroodSize)),zeroInflation=TRUE,family="nbinom",data=Owls)
+>>         library(multcomp)
+>>         pairwise <- glht(om, mcp(Interaction = "Tukey"))
+>>         pairwise.ci <- confint(pairwise)
+>>         library(ggplot2)
+>>         ggplot(pairwise.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + geom_errorbarh() + geom_point() + geom_vline(xintercept = 1)
+>>          
+>>
+>>         Best regards,
+>>
+>>         ir. Thierry Onkelinx
+>>         Instituut voor natuur- en bosonderzoek / Research Institute for Nature and Forest
+>>         team Biometrie & Kwaliteitszorg / team Biometrics & Quality Assurance
+>>         Kliniekstraat 25
+>>         1070 Anderlecht
+>>         Belgium
+>>
+>>         To call in the statistician after the experiment is done may be no more than asking him to perform a post-mortem examination: he may be able to say what the experiment died of. ~ Sir Ronald Aylmer Fisher
+>>         The plural of anecdote is not data. ~ Roger Brinner
+>>         The combination of some data and an aching desire for an answer does not ensure that a reasonable answer can be extracted from a given body of data. ~ John Tukey
+>>
+>>         2015-04-24 15:08 GMT+02:00 Quentin Schorpp <quentin.schorpp@ti.bund.de>:
+>>
+>>             Hello Everyone,
+>>
+>>             I'm using glmmadmb() to model abundance data (counts) of soil organisms
+>>             (e.g. earthworms).  My design covers agricultural fields of five
+>>             different age classes . Every age-class has three field replicates.
+>>             Additionally every field was sampled 3times during the investigation
+>>             (atumn, spring, autumn -> sampling campaign).
+>>             with 4 samples taken randomly at each field (1 Sample = 0.25 m²).
+>>             Several environmental parameters were assessed for each field but never
+>>             for one of the four samples explicitly.
+>>             Hence the environmental data is often redundant for the samples,
+>>             especially when climatic measurements were even similar for more ththan
+>>             one field.
+>>
+>>             My hypothesis is that abundance increases with the age_class
+>>
+>>             My model is:
+>>
+>>             model <- glmmadmb(abundance ~ age_class + samplingCampaign +
+>>             environmental1 + env2 + env3 + (1|field), data, family="poisson")
+>>
+>>             age_class = ordered factor
+>>             sampling campaign = continous, difference to the first sampling in days
+>>             (first sampling always 0)
+>>             env(1-n) = continous
+>>             total number of samples = 180
+>>
+>>             Dispersion factor is 1.45
+>>
+>>             I do model validation with
+>>             1. plot pearson residuals against fitted values
+>>             2. plot pearson residuals against each covariate in the model
+>>             3. make a histogram of the residuals
+>>
+>>             In my opinion everything looks ok.
+>>
+>>             Now I have the really really big problem: *I just don't know how to
+>>             present the results.*
+>>             I'd like to do a barplot with mean abundances for age_class and standard
+>>             errors and do Post Hoc tukey test to look at differences between the
+>>             factor levels. But i just don't know how to to these Post-Hoc tests.
+>>
+>>             I've got one approach for extracting predictions and standard errors for
+>>             predictions using a test dataset with mean environmental variables:
+>>
+>>             test.data=expand.grid(age_class=levels(data$age_class),
+>>                                                      samplingCampaign = data$samcam),
+>>                                                      env1 = mean(data$env1),
+>>                                                      env2 = max(data$env2))
+>>
+>>             pred.abundance <- cbind(test.data,
+>>                                                            predict(model, test.data,
+>>             type="link", se.fit=TRUE),
+>>                                                            abundance.response =
+>>             predict(model, test.data, type="response"))
+>>
+>>             pred.anc <- within(pred.abundance, {
+>>                                                       anc <- 4*exp(fit)
+>>                                                       LL <- 4*exp(fit - 1.96 * se.fit)
+>>                                                       UL <- 4*exp(fit + 1.96 *
+>>             se.fit)  })
+>>
+>>             Then I make a plot and get INCREDIBLY large standard errors and in
+>>             contrast to the boxplot of the predicitons
+>>             (plot(data$age_class,predict(model, type="response")), the abundance is
+>>             not increasing with the age_class. I multiply by 4 since i want to
+>>             present the results per m²
+>>
+>>             Do you know where the mistake is?
+>>
+>>             I would appreciate if you could help me with this analysis, since I'm
+>>             trying to learn GLMM for more than a year and i can't ask a real person
+>>             here at this Institution. Thanks in advance,
+>>             Quentin
+>>
+>>
+>>             --
+>>
+>>             Quentin Schorpp, M.Sc.
+>>             Thünen Institute of Biodiversity
+>>             Bundesallee 50
+>>             38116 Braunschweig (Germany)
+>>
+>>             Tel:  +49 531 596-2524
+>>             Fax:  +49 531 596-2599
+>>             Mail: quentin.schorpp@ti.bund.de
+>>             Web:  http://www.ti.bund.de
+>>
+>>             The Johann Heinrich von Thünen Institute, Federal Research Institute for Rural Areas, Forestry and Fisheries – Thünen Institute in brief –
+>>             consists of 15 specialized institutes that carry out research and provide policy advice in the fields of economy, ecology and technology.
+>>
+>>
+>>                     [[alternative HTML version deleted]]
+>>
+>>             _______________________________________________
+>>             R-sig-mixed-models@r-project.org mailing list
+>>             https://stat.ethz.ch/mailman/listinfo/r-sig-mixed-models
+>>
+>>
+>
+>         -- 
+>         Quentin Schorpp, M.Sc.
+>         Thünen-Institut für Biodiversität
+>         Bundesallee 50
+>         38116 Braunschweig (Germany)
+>
+>         Tel:  +49 531 596-2524
+>         Fax:  +49 531 596-2599
+>         Mail: quentin.schorpp@ti.bund.de
+>         Web:  http://www.ti.bund.de
+>
+>         Das Johann Heinrich von Thünen-Institut, Bundesforschungsinstitut für Ländliche Räume, Wald und Fischerei – kurz: Thünen-Institut – 
+>         besteht aus 15 Fachinstituten, die in den Bereichen Ökonomie, Ökologie und Technologie forschen und die Politik beraten.
+>
+>         Quentin Schorpp, M.Sc.
+>         Thünen Institute of Biodiversity
+>         Bundesallee 50
+>         38116 Braunschweig (Germany)
+>
+>         Tel:  +49 531 596-2524
+>         Fax:  +49 531 596-2599
+>         Mail: quentin.schorpp@ti.bund.de
+>         Web:  http://www.ti.bund.de
+>
+>         The Johann Heinrich von Thünen Institute, Federal Research Institute for Rural Areas, Forestry and Fisheries – Thünen Institute in brief – 
+>         consists of 15 specialized institutes that carry out research and provide policy advice in the fields of economy, ecology and technology.
+>
+>
+
+    -- 
+    Quentin Schorpp, M.Sc.
+    Thünen-Institut für Biodiversität
+    Bundesallee 50
+    38116 Braunschweig (Germany)
+
+    Tel:  +49 531 596-2524
+    Fax:  +49 531 596-2599
+    Mail: quentin.schorpp@ti.bund.de
+    Web:  http://www.ti.bund.de
+
+    Das Johann Heinrich von Thünen-Institut, Bundesforschungsinstitut für Ländliche Räume, Wald und Fischerei – kurz: Thünen-Institut – 
+    besteht aus 15 Fachinstituten, die in den Bereichen Ökonomie, Ökologie und Technologie forschen und die Politik beraten.
+
+    Quentin Schorpp, M.Sc.
+    Thünen Institute of Biodiversity
+    Bundesallee 50
+    38116 Braunschweig (Germany)
+
+    Tel:  +49 531 596-2524
+    Fax:  +49 531 596-2599
+    Mail: quentin.schorpp@ti.bund.de
+    Web:  http://www.ti.bund.de
+
+    The Johann Heinrich von Thünen Institute, Federal Research Institute for Rural Areas, Forestry and Fisheries – Thünen Institute in brief – 
+    consists of 15 specialized institutes that carry out research and provide policy advice in the fields of economy, ecology and technology.
+
+

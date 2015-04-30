@@ -32,6 +32,7 @@ set.seed(1234)
 source("Data/GatherSource/Gather1.R")
 source("Data/GatherSource/Gather2.R")
 source("Data/GatherSource/Gather3.R")
+source("Data/GatherSource/WaterContent.R")
 ```
 
 ```{r RequiredPackages}
@@ -40,9 +41,22 @@ source("Data/GatherSource/coldiss.R")
 source("Data/GatherSource/panelutils.R")
 source("Data/GatherSource/ggplotTheme.R")
 
-MyNorm <- function(x) {(x - mean(x))/ sd(x)}
-
 lo <- par(mfrow=c(1,1))
+
+overdisp_fun <- function(model) {
+  ## number of variance parameters in 
+  ##   an n-by-n variance-covariance matrix
+  vpars <- function(m) {
+    nrow(m)*(nrow(m)+1)/2
+  }
+  model.df <- sum(sapply(VarCorr(model),vpars))+length(fixef(model))
+  rdf <- nrow(model.frame(model))-model.df
+  rp <- residuals(model,type="pearson")
+  Pearson.chisq <- sum(rp^2)
+  prat <- Pearson.chisq/rdf
+  pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+  c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
 
 ```
 
@@ -97,6 +111,20 @@ ________________________________________________________________________________
 ___________________________________________________________________________________________________
 
 ## Exploratory Data Analysis (EDA)
+**********************************
+
+### Outlier
+```{r Outlier}
+climate <- c("ats1", "ats2", "hum1")
+soil <- c("anc", "mc", "pH", "cn", "clay", "sand", "silt")
+
+Mydotplot(data[,soil])
+
+# I ound a mistake in calculation of soil water content, there are outliers in the fiedl replicates, that should be omitted
+# in data analysis; New claculation leads to 25% Water content
+# data[data$mc>25,"mc"] <- 25
+```
+
 
 ### Density Plots
 ```{r DensityPlots, fig.height=6, fig.width=7}
@@ -106,6 +134,7 @@ plot(density(data$anc), main="density-plot of anecic abundance")
 plot(density(data$epi), main="density-plot of epigeic abundance")
 plot(density(data$endo), main="density-plot of endogeic abundance") # Outliers > 80 ?
 ```
+
 
 ### Scatterplots for all pairs of environmental variables
 ```{r EnvironmentalPairplots,message=FALSE, warning=FALSE, echo=FALSE}
@@ -117,9 +146,8 @@ env.chosen <- data[,c("anc", "age_class", "dgO")]
 env.chosen <- data[,c("anc", "age_class", "location")]
 
 # Bivariate plots with histograms on the diagonal and smooth fitted curves
-op <- par(mfrow=c(1,1), pty="s")
 pairs(env.chosen, lower.panel=panel.smooth, upper.panel=panel.cor, method="pearson", diag.panel=panel.hist, main= "Bivariate Plots with Histograms and smooth curves\n(pearson)")
-par(op)
+par(lo)
 
 # correlated with anc:
 # ats2, pH*cn, age_class, samcam, dgO
@@ -127,7 +155,8 @@ par(op)
 
 
 ### Figures of real data for functional groups
-```{r RealDataFigures}
+Version 1 with "1st Order" data
+```{r RealDataFigures1}
 
 # create subset of real data with age_class, abundance (plus N) and biomass
 data.raw.fig <- data[,c(which(colnames(data)=="age_class"),                      
@@ -176,7 +205,7 @@ ggplot(data.rf, aes(x=age_class, y=4*abc.mean, fill=sfg)) +
 ```
 
 Version 2 with "2nd Order" data
-```{r}
+```{r RealDataFigures2}
 # create subset of real data2 with age_class, abundance (plus N) and biomass
 data2.raw.fig <- data2[,c(which(colnames(data2)=="age_class"),                      
                         which(colnames(data2)=="anc"):which(colnames(data2)=="epi"),
@@ -225,7 +254,7 @@ ggplot(data2.rf, aes(x=age_class, y=abc.mean, fill=sfg)) +
 ```
 
 Version 3 with "3rd Order" data
-```{r}
+```{r RealDataFigures3}
 # create subset of real data2 with age_class, abundance (plus N) and biomass
 data3.raw.fig <- data3[,c(which(colnames(data3)=="age_class"),                      
                         which(colnames(data3)=="anc"):which(colnames(data3)=="epi"),
@@ -312,15 +341,16 @@ rm(data.raw.fig, data.rf, data.rf.melted, data.rf.melted2,
    data2.raw.fig, data2.rf, data2.rf.melted, data2.rf.melted2,
    data3.raw.fig, data3.rf, data3.rf.melted, data3.rf.melted2)
 ```
-
 ______________________________________________________________________________________________________________
 
 
-## General linear Mixed Effects Models with 2nd order Data
-
+## General linear Mixed Effects Models (GLMM) with 2nd order Data
+*****************************************************************
 The thought about using 2nd order data instead of 3rd order data is that, besides the response variables, not other covaraites have been assessed at that level.....
 All covariates apply to the field level!!??
 
+### Data Pre-Processing  
+#### Standardize Explanatory Variables 
 ```{r DataPreProcessing1}
 ## Create variable d(delta)samcam as the time difference of each sampling date to the first date, that each field was sampled; first date is Zero for all fields. ####
 data2$dsamcam <- with(data2, round(c(rep(0,15),date[16:30]-date[0:15],date[31:45]-date[1:15]),0))
@@ -343,7 +373,10 @@ data2 <- cbind(data2, std.var)
 ```
 
 
-### GLM approach
+### Anecic Abundance 
+********************
+
+#### GLM approach
 ```{r GLM_2ndOrder}
 
 # Model Formulation
@@ -391,7 +424,7 @@ Dispersion
 ```
 
 
-### GLMM approach
+#### GLMM approach
 ```{r GLMM_2ndOrder}
 
 # Model Forumlation
@@ -442,63 +475,12 @@ Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 #----
 ```
-
-#### Extract Predictions and Standard errors for predictions
-```{r ExtractPredicitons}
-# anc.1.mcmc = glmmadmb(anc ~ age_class + (1|field) + (1|samcam),data2=ew.data2,family="nbinom", zeroInflation=TRUE, mcmc = TRUE, mcmc.opts = mcmcControl(mcmc = 10000))
-
-td.anc=expand.grid(age_class=levels(data2$age_class),
-                   scl.cn = mean(data2$scl.dsamcam),
-                   scl.ats1 = max(data2$scl.ats1))
-
-pred.anc <- cbind(td.anc,
-                  predict(anc.best, td.anc, type="link", se.fit=TRUE),
-                  anc.response=predict(anc.best, td.anc, type="response"))
-
-pred.anc <- within(pred.anc, {
-  AIC <- AIC(anc.best)
-  Rrandom <- summary(lm(fitted(anc.best)~ data2$anc))$adj.r.squared
-  Rsquared <- summary(lm(predict(anc.best, type="response")~ data2$anc))$adj.r.squared
-  anc <- 4*exp(fit)
-  LL <- 4*exp(fit - 1.96 * se.fit)   
-  UL <- 4*exp(fit + 1.96 * se.fit)  
-})
-head(pred.anc)
-range(data2$anc)
-
-stat.anc = round(summary(anc.best)$coefficients[, c(3,4)],4)
-coef.anc = coeftab(anc.best)
-
-anc.env <- glmmadmb(anc ~ scl.dsamcam + scl.dgO + (1|field.ID),data2=data2,family="poisson")
-anc.pvalue <- anova(anc.env, anc.best)$"Pr(>Chi)"
-
-pred.Stat.anc = cbind(stat.anc,coef.anc,LogLikP=anc.pvalue[2],fixef=fixef(anc.best))
-````
-
-```{r}
-#write.table(pred.Stat.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
-#write.table(pred.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
-```
-
-#### Prediciton plots
-```{r AncPredictionPlot}
-library(ggplot2)
-
-ggplot(pred.anc, aes(x=age_class, y=anc)) + 
-  geom_bar(stat="identity", width=0.5) +
-  geom_line(aes(group=anc))+  
-  geom_errorbar(aes(ymin=LL, ymax=UL), width=.1) +
-  geom_line()
+_________________________________________________________________________________________
 
 
-par(mfrow=c(1,1))
-par(mar=c(3,3,3,3))
-par(oma=c(1,1,1,1))
-coefplot2(anc.best)    
-```
 
-
-## General linear Mixed Effects Models with 3rd order Data
+## General linear Mixed Effects Models with 1st order Data
+**********************************************************
 
 ### Data Pre-Processing  
 #### Standardize Explanatory Variables  
@@ -521,12 +503,21 @@ colnames(std.var) <- paste("scl", colnames(std.var), sep = ".") # rename columns
 data$area <- rep(0.25,180)
 
 data <- cbind(data, std.var)
+
+
+# Ordered or not??
+# Since i found it too difficult to handle, i used non-ordered factors
+data$age_class <- factor(data$age_class, ordered=TRUE)
+data$samcam <- factor(data$samcam, ordered=FALSE)
+
 #----
 ```
 
 
 ### Anecic Abundance
+********************
 
+#### Assess variability in random effects
 ```{r BoxPlots,echo=FALSE}
 
 # Variability within sites
@@ -535,10 +526,234 @@ boxplot(anc~field.ID, data, col="grey", main="Variability within sites", xlab="s
 # variability within sampling campaigns
 boxplot(anc~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
 
-# variability within sampling campaigns
+# variability within sites and sampling campaigns
 boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
 ```
-     
+  
+
+#### GLMM using glmmADMB
+
+
+##### Model Formulation
+```{r GLMM_anc, cache=TRUE}
+# Global Model
+
+str(data)
+
+# Model Formulation
+anc.glob <- glmmadmb(anc ~ age_class*samcam + I(scl.mc^2) + scl.pH*scl.cn + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+# offsset is used due to the personal advice by T. Onkelinx:
+# You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
+
+summary(anc.glob)
+
+# Overdispersion
+E1 <- resid(anc.glob, type="pearson")
+N <- nrow(data)
+p <- length(coef(anc.glob))+1 # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative 
+                              # binomial distribution
+Dispersion <- sum(E1^2)/(N-p)
+Dispersion
+
+# Multimodel averaging
+anc.dredge <- dredge(anc.glob)
+head(anc.dredge,10)
+
+# The best model with both glmer() and glmmadmb():
+# anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+anc.best <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+summary(anc.best)
+
+# glmer has less dispersion
+
+# A former "best model" with humidity as significant term and age_class as ordered factor
+# anc.best <- glmmadmb(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+# summary(anc.best)
+````
+
+A former "best model" with humidity as significant term and age_class as ordered factor, found using dredge was
+anc.best <- glmmadmb(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+
+##### Model Validation
+```{r ModelValidation1_anc}
+summary(anc.best)
+summary(aov(anc.best))
+
+confint(anc.best)
+coefplot2(anc.best)
+
+
+## Model validation ####
+E1 <- resid(anc.best, type="pearson")
+F1 <- fitted(anc.best, type="response")
+
+# Dataset with all variables IN the model
+env1 <- cbind(E1, F1, data[,c("anc", "age_class", "samcam", "ats1")])
+# covariates NOT in the model
+env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "hum1","dgO")])
+
+# plot residual versus all covariates in the model
+par(mfrow=c(2,3),
+    mar=c(3.8,4,1,3))
+for (i in 1:length(env1)) {
+  scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i])
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+
+# plot residual versus all covariates NOT in the model
+par(mfrow=c(3,3),
+    mar=c(3.8,4,1,3))
+for (i in 1:length(env0)) {
+  scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+
+# Overdispersion
+N <- nrow(data)
+p <- length(coef(anc.best)) # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative 
+                        # binomial distribution
+Dispersion <- sum(E1^2)/(N-p)
+Dispersion
+#####
+
+overdisp_fun(anc.best)
+
+
+# Deviance
+logLik(anc.best) 
+
+# Fraction of explained variation in the response variable
+100*((anc.best$null.deviance-anc.best$deviance)/anc.best$null.deviance) # failed
+
+
+# Plots of Predicted Values
+par(mfrow=c(2,2))
+plot(data$age_class,predict(anc.best, type="response"))
+plot(data$samcam,predict(anc.best, type="response"))
+plot(data$ats1^2,predict(anc.best, type="response"))
+plot(data$hum1^2,predict(anc.best, type="response"))
+
+# Plots of fitted Values
+par(mfrow=c(2,2))
+plot(data$age_class,F1)
+plot(data$samcam,F1)
+plot(data$ats1^2,F1)
+
+par(lo)
+```
+
+Model validation 2
+```{r ModelValidation2_anc,fig.width=8, fig.height=7}
+# Model Validation 
+
+E <- resid(anc.best, type="pearson")
+
+par(mfrow=c(2,2))
+par(mar=c(5,5,2,3))
+plot(E~fitted(anc.best), ylab="Pearson Residuals", xlab="Fitted values") 
+abline(h=0, lty=2)
+hist(E, main = "", breaks = 20, cex.lab = 1.5, xlab = "Pearson Residuals")
+plot(E ~ data$age_class, ylab="Pearson Residuals", xlab="Age Class")
+abline(h=0, lty=2)
+plot(E ~ data$ats1, ylab="Pearson Residuals", xlab="Age Class")
+abline(h=0, lty=2)
+````
+
+##### Post-Hoc Multicomparisons
+```{r PostHocMulticomparisons_anc}
+data$ia.acl.smc <- interaction(data$age_class, data$samcam)
+anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+summary(anc.tukey)
+
+
+# Pairwise comparisons
+anc.pairwise <- glht(anc.tukey, mcp(ia.acl.smc = "Tukey"))
+anc.pw.ci <- confint(anc.pairwise)
+
+names(anc.pw.ci)
+anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
+data.frame(names(anc.pw.sig))
+
+
+# Plot Errorbars
+ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
+
+# plot confidence intervals
+
+par(mar=c(2,15,2,2))
+plot(anc.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
+
+
+```
+
+##### Extract Predictions and plot predictions with error bars
+```{r ExtractPredicitons}
+anc.td = expand.grid(age_class=unique(data$age_class),
+                     samcam = unique(data$samcam),               
+                     scl.ats1 = mean(data$scl.ats1),
+                     area = 1)
+
+anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confidence")) 
+
+data$samcam2 <-  data$samcam # duplicate variable samcam to change facet labels
+revalue
+
+
+ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
+  geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
+  facet_grid(.~samcam) +
+  geom_hline(xintercept = 1) +
+  ylab("Abundance Ind./m²") +
+  xlab("Age Class") +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+  mytheme
+
+
+anc.pred <- within(anc.pred, {
+  AIC <- AIC(anc.best)
+  Rrandom <- summary(lm(fitted(anc.best)~ data$anc))$adj.r.squared
+  Rsquared <- summary(lm(predict(anc.best, type="response")~ data$anc))$adj.r.squared  
+})
+head(anc.pred)
+
+anc.stat = round(summary(anc.best)$coefficients[, c(3,4)],4)
+anc.coef = coeftab(anc.best)
+
+anc.env <- glmmadmb(anc ~ samcam + I(ats1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+anc.pvalue <- anova(anc.env, anc.best)$"Pr(>Chi)"
+
+anc.OUT1 = anc.pred
+anc.OUT2 = cbind(anc.stat,anc.coef,LogLikP=anc.pvalue[2],fixef=fixef(anc.best))
+````
+
+```{r WriteOut}
+#write.table(anc.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(anc.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+```
+
+```{r PredictionPlot2}
+anc.td = expand.grid(age_class=unique(data$age_class),
+                     samcam = unique(data$samcam),               
+                     scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1), by=0.2),
+                     area = 1)
+
+anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confidence")) 
+
+ggplot(anc.pred, aes(x = scl.ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr),col=samcam)) + 
+  geom_errorbar(position = position_dodge(1)) + 
+  geom_point(position = position_dodge(1)) +
+  facet_grid(.~age_class) +
+  mytheme
+```
+
+
 #### From simple linear model to more complexity
 ```{r SimpleREgression, cache=TRUE}
 ## from Zuur "A beginers Guide....", p.116 ff ####
@@ -611,227 +826,14 @@ md <- seq(1, 5, length = 10)
 Beta <- coef(M0)
 for (i in 1:10){
   mu <- Beta[1] + Beta[2] * md[i]
-	yi <- rnorm(100, mean = mu, sd = summary(M0)$sigma) # sigma = residual standard error
+  yi <- rnorm(100, mean = mu, sd = summary(M0)$sigma) # sigma = residual standard error
 	points(jitter(rep(md[i], 100)), jitter(yi), col = grey(0.5), pch = 16, cex = 1)
 }
 #################################################
 ````
 
-#### GLMM using glmmADMB
-```{r GLMM_anc, cache=TRUE}
-# Global Model
 
-# Ordered or not??
-# Since i found it too difficult to handle, i used non-ordered factors
-data$age_class <- factor(data$age_class, ordered=TRUE)
-data$samcam <- factor(data$samcam, ordered=FALSE)
-
-str(data)
-
-# Model Formulation
-anc.glob <- glmmadmb(anc ~ age_class*samcam + I(scl.mc^2) + scl.pH*scl.cn + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
-# offsset is used due to the personal advice by T. Onkelinx:
-# You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
-
-summary(anc.glob)
-
-# Overdispersion
-E1 <- resid(anc.glob, type="pearson")
-N <- nrow(data)
-p <- length(coef(anc.glob))+1 # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative 
-                              # binomial distribution
-Dispersion <- sum(E1^2)/(N-p)
-Dispersion
-
-# Multimodel averaging
-anc.dredge <- dredge(M2)
-head(anc.dredge,10)
-
-anc.best <- glmmadmb(anc ~ age_class + samcam + I(scl.mc^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-summary(anc.best)
-
-# A former "best model" with humidity as significant term and age_class as ordered factor
-# anc.best <- glmmadmb(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-# summary(anc.best)
-````
-
-A former "best model" with humidity as significant term and age_class as ordered factor, found using dredge was
-anc.best <- glmmadmb(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-
-
-
-```{r ModelValidation_anc}
-## Model validation ####
-E1 <- resid(anc.best, type="pearson")
-F1 <- fitted(anc.best, type="response")
-
-# Dataset with all variables IN the model
-env1 <- cbind(E1, F1, data[,c("anc", "age_class", "samcam", "ats1")])
-# covariates NOT in the model
-env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "hum1","dgO")])
-
-# plot residual versus all covariates in the model
-par(mfrow=c(2,3),
-    mar=c(3.8,4,1,3))
-for (i in 1:length(env1)) {
-  scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i])
-  abline(h=0, lty=2, col="red")
-}
-par(mfrow=c(1,1))
-
-# plot residual versus all covariates NOT in the model
-par(mfrow=c(3,3),
-    mar=c(3.8,4,1,3))
-for (i in 1:length(env0)) {
-  scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
-  abline(h=0, lty=2, col="red")
-}
-par(mfrow=c(1,1))
-
-# Overdispersion
-N <- nrow(data)
-p <- length(coef(anc.best))+1 # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative 
-                        # binomial distribution
-Dispersion <- sum(E1^2)/(N-p)
-Dispersion
-#####
-
-
-# Plots of Predicted Values
-par(mfrow=c(2,2))
-plot(data$age_class,predict(anc.best, type="response"))
-plot(data$samcam,predict(anc.best, type="response"))
-plot(data$ats1^2,predict(anc.best, type="response"))
-plot(data$hum1^2,predict(anc.best, type="response"))
-
-# Plots of fitted Values
-par(mfrow=c(2,2))
-plot(data$age_class,F1)
-plot(data$samcam,F1)
-plot(data$ats1^2,F1)
-
-par(lo)
-```
-
-
-
-```{r PostHocMulticomparisons_anc}
-# Pairwise comparisons
-anc.pairwise <- glht(anc.best, mcp(age_class = "Tukey"))
-anc.pw.ci <- confint(anc.pairwise)
-
-# Plot Errorbars
-ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
-  geom_errorbarh() + 
-  geom_point() + 
-  geom_vline(xintercept = 1) +
-  mytheme
-
-# plot confidence intervals
-par(mar=c(2,15,2,2))
-plot(anc.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
-
-
-```
-
-
-
-#### Model Validation
-```{r ModelValidation2,fig.width=8, fig.height=7}
-# Model Validation 
-confint(anc.best)
-
-E <- resid(anc.best, type="pearson")
-
-par(mfrow=c(2,2))
-par(mar=c(5,5,2,3))
-plot(E~fitted(anc.best), ylab="Pearson Residuals", xlab="Fitted values") 
-abline(h=0, lty=2)
-hist(E, main = "", breaks = 20, cex.lab = 1.5, xlab = "Pearson Residuals")
-plot(E ~ data$age_class, ylab="Pearson Residuals", xlab="Age Class")
-abline(h=0, lty=2)
-plot(E ~ data$mc, ylab="Pearson Residuals", xlab="Age Class")
-abline(h=0, lty=2)
-````
-
-
-#### Extract Predictions and Standard errors for predictions
-```{r ExtractPredicitons}
-# anc.1.mcmc = glmmadmb(anc ~ age_class + (1|field) + (1|samcam),data=ew.data,family="nbinom", zeroInflation=TRUE, mcmc = TRUE, mcmc.opts = mcmcControl(mcmc = 10000))
-
-anc.td = expand.grid(age_class=unique(data$age_class),
-                     samcam = unique(data$samcam),               
-                     scl.mc = mean(data$scl.ats1),
-                     area = 1)
-
-anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confidence")) 
-
-ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
-  geom_bar(stat="identity",position = position_dodge(1)) +
-  geom_errorbar(position = position_dodge(1),col="red") + 
-  facet_grid(.~samcam) +
-  mytheme
-
-
-anc.td = expand.grid(age_class=unique(data$age_class),
-                     samcam = unique(data$samcam),               
-                     scl.mc = seq(min(data$scl.mc),max(data$scl.mc), by=0.2),
-                     area = 1)
-
-anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confidence")) 
-
-ggplot(anc.pred, aes(x = scl.mc, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
-  geom_errorbar(position = position_dodge(1)) + 
-  geom_point(position = position_dodge(1)) +
-  facet_grid(.~age_class) +
-  mytheme
-
-
-
-
-pred.anc <- within(pred.anc, {
-  AIC <- AIC(anc.best)
-  Rrandom <- summary(lm(fitted(anc.best)~ data$anc))$adj.r.squared
-  Rsquared <- summary(lm(predict(anc.best, type="response")~ data$anc))$adj.r.squared
-  anc <- 4*exp(fit)
-  LL <- 4*exp(fit - 1.96 * se.fit)   
-  UL <- 4*exp(fit + 1.96 * se.fit)  
-})
-head(pred.anc)
-range(data$anc)
-
-stat.anc = round(summary(anc.best)$coefficients[, c(3,4)],4)
-coef.anc = coeftab(anc.best)
-
-anc.env <- glmmadmb(anc ~ scl.dsamcam + scl.dgO + (1|field.ID),data=data,family="poisson")
-anc.pvalue <- anova(anc.env, anc.best)$"Pr(>Chi)"
-
-pred.Stat.anc = cbind(stat.anc,coef.anc,LogLikP=anc.pvalue[2],fixef=fixef(anc.best))
-````
-
-```{r}
-#write.table(pred.Stat.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
-#write.table(pred.anc, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
-```
-
-#### Prediciton plots
-```{r AncPredictionPlot}
-library(ggplot2)
-
-ggplot(pred.anc, aes(x=age_class, y=anc)) + 
-  geom_bar(stat="identity", width=0.5) +
-  geom_line(aes(group=anc))+  
-  geom_errorbar(aes(ymin=LL, ymax=UL), width=.1) +
-  geom_line()
-
-
-par(mfrow=c(1,1))
-par(mar=c(3,3,3,3))
-par(oma=c(1,1,1,1))
-coefplot2(anc.best)    
-```
-
-### GLMM according to Analysis of honey bee pollination data from Zuur "A Beginenrs Guide,.."
+#### GLMM with JAGS according to Analysis of honey bee pollination data from Zuur "A Beginenrs Guide,.."
 
 ```{r GLMM22}
 xyplot(anc~samcam|age_class,
@@ -1153,6 +1155,73 @@ xyplot(anc ~ scl.dsamcam | age_class,
 
 
 ```
+
+
+_________________________________________________________________________________________________________________________
+
+
+### Endogeic Abundance
+**********************
+
+#### Assess variability of random effects
+```{r BoxPlots,echo=FALSE}
+par(lo)
+
+# Variability within sites
+boxplot(endo~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+
+# variability within sampling campaigns
+boxplot(endo~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+
+# variability within sites and sampling campaigns
+boxplot(endo~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+```
+ 
+#### GLMM using glmmADMB
+
+##### Model Formulation
+```{r GLMM_anc, cache=TRUE}
+# Global Model
+
+str(data)
+
+# Model Formulation
+endo.glob <- glmmadmb(endo ~ age_class + samcam + I(scl.mc^2) + scl.pH*scl.cn + scl.ats1 + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
+# offsset is used due to the personal advice by T. Onkelinx:
+# You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
+
+summary(endo.glob)
+
+# Overdispersion
+E1 <- resid(endo.glob, type="pearson")
+N <- nrow(data)
+p <- length(coef(endo.glob))+1 # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative binomial distribution
+Dispersion <- sum(E1^2)/(N-p)
+Dispersion
+
+# Multimodel averaging
+endo.dredge <- dredge(endo.glob)
+head(endo.dredge,10)
+
+# The best model with both glmer() and glmmadmb():
+# endo.best <- glmer(endo ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+endo.best <- glmmadmb(endo ~ age_class + samcam + scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+summary(endo.best)
+
+# glmer has less dispersion
+
+# A former "best model" with humidity as significant term and age_class as ordered factor
+# endo.best <- glmmadmb(endo ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+# summary(endo.best)
+````
+
+A former "best model" with humidity as significant term and age_class as ordered factor, found using dredge was
+anc.best <- glmmadmb(anc ~ age_class + scl.dsamcam + I(scl.ats1^2) +I(scl.hum1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+
+
+
+
+
 
 
 # Results
