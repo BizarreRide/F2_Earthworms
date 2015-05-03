@@ -128,11 +128,24 @@ Mydotplot(data[,soil])
 
 ### Density Plots
 ```{r DensityPlots, fig.height=6, fig.width=7}
+
+# Abundance Data
 par(mfrow=c(2,2))
 plot(density(data$N), main="density-plot of total abundance")
 plot(density(data$anc), main="density-plot of anecic abundance")
 plot(density(data$epi), main="density-plot of epigeic abundance")
 plot(density(data$endo), main="density-plot of endogeic abundance") # Outliers > 80 ?
+
+# Biomass Data
+par(mfrow=c(2,2))
+plot(density(data$N.bm), main="density-plot of total abundance")
+plot(density(data$anc.bm), main="density-plot of anecic abundance")
+plot(density(data$anc.bm[data$anc.bm>0]), main="density-plot of anecic abundance")
+plot(density(data$epi.bm), main="density-plot of epigeic abundance")
+plot(density(data$endo.bm), main="density-plot of endogeic abundance") # Outliers > 80 ?
+par(lo)
+
+
 ```
 
 
@@ -1164,7 +1177,7 @@ xyplot(anc ~ scl.dsamcam | age_class,
 _________________________________________________________________________________________________________________________
 
 
-### Endogeic Abundance
+### Endogeic Abundance (adults only)
 **********************
 
 #### Assess variability of random effects
@@ -1172,13 +1185,13 @@ ________________________________________________________________________________
 par(lo)
 
 # Variability within sites
-boxplot(endo2~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+boxplot(endad~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
 
 # variability within sampling campaigns
-boxplot(endo2~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+boxplot(endad~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
 
 # variability within sites and sampling campaigns
-boxplot(endo~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+boxplot(endad~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
 ```
  
 #### GLMM using glmmADMB
@@ -1186,37 +1199,32 @@ boxplot(endo~field.ID+samcam, data, las=2, col="grey", main="Variability within 
 ##### Model Formulation
 ```{r GLMM_anc, cache=TRUE}
 # Global Model
-
 str(data)
 
 # Model Formulation
-endo.glob1 <- glmmadmb(endo ~ age_class + samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
-endo.glob1 <- glmmadmb(endo ~ age_class + samcam + I(scl.mc^2) + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
-endo.glob1 <- glmmadmb(endo ~ age_class + samcam + I(scl.ats1^2) + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
+endo.glob1 <- glmmadmb(endad ~ age_class + samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
+endo.glob2 <- glmmadmb(endad ~ age_class + samcam + I(scl.mc^2) + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
+endo.glob3 <- glmmadmb(endad ~ age_class + samcam + I(scl.ats1^2) + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
 summary(endo.glob)
 
 # Overdispersion
-E1 <- resid(endo.glob, type="pearson")
+E1 <- resid(endo.glob1, type="pearson")
 N <- nrow(data)
-p <- length(coef(endo.glob))+1 # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative binomial distribution
+p <- length(coef(endo.glob)) # The Plus "+1" used for determining the number of parameters(p) is due to the "k" of negative binomial distribution
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 
 # Multimodel averaging
-endo.dredge3 <- dredge(endo.glob)
-head(endo.dredge3,10)
+endo.dredge8 <- dredge(endo.glob1)
+head(endo.dredge8,10)
 
 # The best model with both glmer() and glmmadmb():
 # endo.best <- glmer(endo ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-endo.best <- glmmadmb(endo ~ age_class + samcam + scl.mc + scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="nbinom")
-endo.best <- glmer.nb(endo ~ age_class + samcam + scl.mc + scl.pH + (1|field.ID) + offset(log(area)) ,data=data)
+endo.best <- glmmadmb(endad ~ age_class + samcam + scl.mc + scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="nbinom") 
 summary(endo.best)
-
-# glmer has less dispersion?
-endo.best <- glmer.nb(endo ~ age_class + samcam + scl.mc + scl.pH + (1|field.ID) + offset(log(area)) ,data=data)
 
 ````
 
@@ -1235,9 +1243,9 @@ E1 <- resid(endo.best, type="pearson")
 F1 <- fitted(endo.best, type="response")
 
 # Dataset with all variables IN the model
-env1 <- cbind(E1, F1, data[,c("endo", "age_class", "samcam", "mc","pH")])
+env1 <- cbind(E1, F1, datax[,c("endo", "age_class", "samcam", "mc","pH")])
 # covariates NOT in the model
-env0 <- cbind(E1, F1,data[,c("ats1", "cn", "clay", "ats2", "hum1","dgO")])
+env0 <- cbind(E1, F1,datax[,c("ats1", "cn", "clay", "ats2", "hum1","dgO")])
 
 # plot residual versus all covariates in the model
 par(mfrow=c(3,3),
@@ -1309,7 +1317,6 @@ abline(h=0, lty=2)
 ````
 
 
-
 ##### Post-Hoc Multicomparisons
 ```{r PostHocMulticomparisons_anc}
 # Pairwise comparisons
@@ -1334,6 +1341,7 @@ par(mar=c(2,15,2,2))
 plot(endo.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
 
 ```
+
 
 ##### Extract Predictions and plot predictions with error bars
 ```{r ExtractPredicitons}
@@ -1383,19 +1391,612 @@ endo.OUT2 = cbind(endo.stat,endo.coef,LogLikP=endo.pvalue[2],fixef=fixef(endo.be
 ```
 
 ```{r PredictionPlot2}
-anc.td = expand.grid(age_class=unique(data$age_class),
+	endo.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
-                     scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1), by=0.2),
+                     scl.mc = mean(data$scl.mc),
+                     scl.pH = seq(min(data$scl.pH),max(data$scl.pH), by=0.2),
                      area = 1)
 
-anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confidence")) 
+	endo.pred <- cbind(	endo.td, predict(	endo.best, newdata = 	endo.td, interval = "confidence")) 
 
-ggplot(anc.pred, aes(x = scl.ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr),col=samcam)) + 
+ggplot(	endo.pred, aes(x = scl.pH, y = exp(fit), ymin = exp(lwr), ymax = exp(upr),col=samcam)) + 
   geom_errorbar(position = position_dodge(1)) + 
   geom_point(position = position_dodge(1)) +
   facet_grid(.~age_class) +
   mytheme
 ```
+
+
+
+
+### Anecic Biomass
+**********************
+
+
+#### Assess variability of random effects
+```{r BoxPlots,echo=FALSE}
+par(lo)
+
+# Variability within sites
+boxplot(anc.bm~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+
+# variability within sampling campaigns
+boxplot(anc.bm~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+
+# variability within sites and sampling campaigns
+boxplot(anc.bm~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+
+dotchart(data$anc.bm)
+
+```
+ 
+ 
+#### xy plots for linear realtionships and interactions
+```{r}
+xyplot(anc.bm~pH|age_class,data=data)
+xyplot(anc.bm~cn|age_class,data=data)
+xyplot(anc.bm~clay|age_class,data=data)
+xyplot(anc.bm~mc|age_class,data=data) 
+xyplot(anc.bm~cn|pH,data=data) 
+````
+
+
+#### GLMM using glmmADMB
+
+
+##### Model Formulation
+```{r GLMM_anc, cache=TRUE}
+# Global Model
+str(data)
+
+# Percentage of zero values in biomass data for anecic earthworms
+nrow(data[data$anc==0,])/nrow(data)
+
+# Subset of all Biomass data not 0
+datax <- subset(data, anc.bm>0)
+
+# Outliers in CN ratio
+which(data$cn>15)
+data[which(data$cn>15),]$field
+# eliminate Outliers
+datay <- data[data$field!="EF_2011",]
+
+# Model Formulation
+# First off, let's start with what a significant continuous by continuous interaction means. It means that the slope of one continuous variable on the response variable changes as the values on a second continuous change.
+
+# Gamma distribution without zero values
+anc.bm.glob1 <- glmmadmb(anc.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datax,family="gamma")
+
+# Gamma distribution adding small values to Zero 
+anc.bm.glob2 <- glmmadmb(I(anc.bm+0.0001) ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gamma")
+
+# Normal distribution
+anc.bm.glob3 <- glmmadmb(anc.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gaussian")
+
+anc.bm.glob4 <- glmmadmb(anc.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datax,family="gaussian")
+
+anc.bm.glob5 <- glmmadmb(anc.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datay,family="gaussian")
+
+anc.bm.glob6 <- glmmadmb(I(anc.bm+0.0001) ~ age_class*samcam + I(scl.ats1^2) + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datay,family="gamma")
+
+anc.bm.glob7 <- glmmadmb(I(anc.bm+0.0001) ~ age_class*samcam + I(scl.ats1^2) + scl.hum1 + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datay,family="gamma")
+
+
+# offsset is used due to the personal advice by T. Onkelinx:
+# You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
+
+# Multimodel averaging
+anc.bm.dredge1 <- dredge(anc.bm.glob1)
+anc.bm.dredge2 <- dredge(anc.bm.glob2)
+anc.bm.dredge3 <- dredge(anc.bm.glob3)
+anc.bm.dredge4 <- dredge(anc.bm.glob4)
+anc.bm.dredge5 <- dredge(anc.bm.glob5)
+anc.bm.dredge6 <- dredge(anc.bm.glob6)
+anc.bm.dredge7 <- dredge(anc.bm.glob7)
+head(anc.bm.dredge1,10)
+head(anc.bm.dredge2,10)
+head(anc.bm.dredge3,10)
+head(anc.bm.dredge4,10)
+head(anc.bm.dredge5,10)
+head(anc.bm.dredge6,10)
+head(anc.bm.dredge7,10)
+
+# The best model with both glmer() and glmmadmb():
+# anc.bm.best <- glmer(anc.bm ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+
+anc.bm.best <- glmmadmb(I(anc.bm+0.0001) ~ age_class + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="gamma") 
+
+anc.bm.best2 <- glmmadmb(anc.bm ~ age_class + scl.mc + (1|field.ID) + offset(log(area)) ,data=data,family="gaussian", zeroInflation=TRUE) 
+````
+
+
+##### Model Validation
+```{r ModelValidation1_anc}
+summary(anc.bm.best)
+summary(aov(anc.bm.best))
+
+confint(anc.bm.best)
+coefplot2(anc.bm.best)
+
+## Model validation ####
+E1 <- resid(anc.bm.best, type="response")
+F1 <- fitted(anc.bm.best, type="response")
+
+plot(F1, E1)
+abline(h = 0, v=0, lty=2)
+
+plot(data$ats1^2, E1)
+abline(h = 0, v=0, lty=2)
+
+# negative fitted values:
+which(F1<0)
+
+# Dataset with all variables IN the model
+env1 <- cbind(E1, F1, data[,c("anc.bm", "age_class", "ats1", "mc")])
+# covariates NOT in the model
+env0 <- cbind(E1, F1,data[,c(  "cn", "clay", "ats2", "hum1","dgO", X"samcam", "pH")])
+
+# plot residual versus all covariates in the model
+par(mfrow=c(3,2),
+     mar=c(3.8,4,1,3))
+for (i in 1:length(env1)) {
+  scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i])
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+
+# plot residual versus all covariates NOT in the model
+par(mfrow=c(3,4),
+    mar=c(3.8,4,1,3))
+for (i in 1:length(env0)) {
+  scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+
+
+# Plots of Predicted Values
+par(mfrow=c(2,2))
+plot(data$age_class,predict(anc.bm.best, type="response"))
+plot(data$samcam,predict(anc.bm.best, type="response"))
+plot(data$mc,predict(anc.bm.best, type="response"))
+plot(data$pH,predict(anc.bm.best, type="response"))
+
+# Plots of fitted Values
+par(mfrow=c(2,2))
+plot(data$age_class,F1)
+plot(data$samcam,F1)
+plot(data$mc,F1)
+plot(data$pH,F1)
+
+par(lo)
+```
+
+Model validation 2
+```{r ModelValidation2_anc.bm,fig.width=8, fig.height=7}
+# Model Validation 
+
+E <- resid(anc.bm.best, type="response")
+
+par(mfrow=c(2,2))
+par(mar=c(5,5,2,3))
+plot(E~fitted(anc.bm.best), ylab=" Residuals", xlab="Fitted values") 
+abline(h=0, lty=2)
+hist(E, main = "", breaks = 20, cex.lab = 1.5, xlab = "Response Residuals")
+plot(E ~ data$age_class, ylab="Residuals", xlab="Age Class")
+abline(h=0, lty=2)
+plot(E ~ I(data$ats1^2), ylab="Residuals", xlab="Average temperature (30d)")
+abline(h=0, lty=2)
+````
+
+
+##### Post-Hoc Multicomparisons
+```{r PostHocMulticomparisons_anc}
+# Pairwise comparisons
+anc.bm.pairwise <- glht(anc.bm.best, mcp(age_class = "Tukey"))
+anc.bm.pw.ci <- confint(anc.bm.pairwise)
+
+names(anc.bm.pw.ci)
+anc.bm.pw.sig <- which(anc.bm.pw.ci$confint[,2]>0)
+data.frame(names(anc.bm.pw.sig))
+
+
+# Plot Errorbars
+ggplot(anc.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
+
+# plot confidence intervals
+
+par(mar=c(2,15,2,2))
+plot(anc.bm.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
+
+```
+
+
+##### Extract Predictions and plot predictions with error bars
+```{r ExtractPredicitons}
+anc.bm.td = expand.grid(age_class=unique(data$age_class),
+                        scl.ats1 = max(data$scl.ats1),
+                        area = 1)
+
+anc.bm.pred <- cbind(anc.bm.td, predict(anc.bm.best, newdata = anc.bm.td, interval = "confidence")) 
+
+data$samcam2 <-  data$samcam # duplicate variable samcam to change facet labels
+#revalue
+
+
+ggplot(anc.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
+  geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
+  geom_hline(xintercept = 1) +
+  ylab("Biomass [g]") +
+  xlab("Age Class") +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+  mytheme
+
+
+anc.bm.pred <- within(anc.bm.pred, {
+  AIC <- AIC(anc.bm.best)
+  Rrandom <- summary(lm(fitted(anc.bm.best)~ data$anc.bm))$adj.r.squared
+  Rsquared <- summary(lm(predict(anc.bm.best, type="response")~ data$anc.bm))$adj.r.squared  
+})
+head(anc.bm.pred)
+
+anc.bm.stat = round(summary(anc.bm.best)$coefficients[, c(3,4)],4)
+anc.bm.coef = coeftab(anc.bm.best)
+
+anc.bm.env <- glmmadmb(anc.bm ~ samcam + I(ats1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+anc.bm.pvalue <- anova(anc.bm.env, anc.bm.best)$"Pr(>Chi)"
+
+anc.bm.OUT1 = anc.bm.pred
+anc.bm.OUT2 = cbind(anc.bm.stat,anc.bm.coef,LogLikP=anc.bm.pvalue[2],fixef=fixef(anc.bm.best))
+````
+
+```{r WriteOut}
+#write.table(anc.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(anc.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+```
+
+```{r PredictionPlot2}
+  anc.bm.td = expand.grid(age_class=unique(data$age_class),
+                     scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1),by=0.2),
+                     area = 1)
+
+	anc.bm.pred <- cbind(	anc.bm.td, predict(	anc.bm.best, newdata = 	anc.bm.td, interval = "confidence")) 
+
+ggplot(	anc.bm.pred, aes(x = scl.ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_errorbar(position = position_dodge(1)) + 
+  geom_point(position = position_dodge(1)) +
+  facet_grid(.~age_class) +
+  mytheme
+```
+
+
+```{r}
+anc.bm.td = expand.grid(age_class=unique(data$age_class),
+                        area = 1)
+
+anc.bm.pred <- cbind(anc.bm.td, predict(anc.bm.best2, newdata = anc.bm.td, interval = "confidence")) 
+
+data$samcam2 <-  data$samcam # duplicate variable samcam to change facet labels
+#revalue
+
+
+ggplot(anc.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
+  geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
+  geom_hline(xintercept = 1) +
+  ylab("Biomass [g]") +
+  xlab("Age Class") +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+  mytheme
+```
+
+
+
+
+### Endogeic Biomass
+**********************
+
+
+#### Assess variability of random effects
+```{r BoxPlots,echo=FALSE}
+par(lo)
+
+# Variability within sites
+boxplot(endo.bm~age_class, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+
+# variability within sampling campaigns
+boxplot(endo.bm~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+
+# variability within sites and sampling campaigns
+boxplot(endo.bm~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+
+dotchart(data$endo.bm)
+
+```
+ 
+ 
+#### xy plots for linear realtionships and interactions
+```{r}
+xyplot(endo.bm~pH|age_class,data=data)
+xyplot(endo.bm~cn|age_class,data=data)
+xyplot(endo.bm~clay|age_class,data=data)
+xyplot(endo.bm~mc|age_class,data=data) 
+xyplot(endo.bm~cn|pH,data=data) 
+````
+
+
+#### GLMM using glmmADMB
+
+
+##### Model Formulation
+```{r GLMM_anc, cache=TRUE}
+# Global Model
+str(data)
+
+# Percentage of zero values in biomass data for anecic earthworms
+nrow(data[data$endo.bm==0,])/nrow(data)
+
+# Subset of all Biomass data not 0
+datax <- subset(data, endo.bm>0)
+
+# Outliers in CN ratio
+which(data$cn>15)
+data[which(data$cn>15),]$field
+# eliminate Outliers
+datay <- data[data$field!="EF_2011",]
+
+# Model Formulation
+# First off, let's start with what a significant continuous by continuous interaction means. It means that the slope of one continuous variable on the response variable changes as the values on a second continuous change.
+
+# Gamma distribution without zero values
+endo.bm.glob1 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datax,family="gamma")
+
+# Gamma distribution adding small values to Zero 
+endo.bm.glob2 <- glmmadmb(I(endo.bm+0.0001) ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gamma")
+
+# Normal distribution
+endo.bm.glob3 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gaussian")
+
+endo.bm.glob4 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datax,family="gaussian")
+
+endo.bm.glob5 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datay,family="gaussian")
+
+endo.bm.glob6 <- glmmadmb(I(endo.bm+0.0001) ~ age_class*samcam + I(scl.ats1^2) + scl.hum1 + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datay,family="gamma")
+
+# Normal distribution
+endo.bm.glob7 <- glmmadmb(endo.bm ~ age_class*samcam + I(scl.ats1^2) + scl.hum1 + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gaussian")
+
+# offsset is used due to the personal advice by T. Onkelinx:
+# You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
+
+# Multimodel averaging
+endo.bm.dredge1 <- dredge(endo.bm.glob1)
+endo.bm.dredge2 <- dredge(endo.bm.glob2)
+endo.bm.dredge3 <- dredge(endo.bm.glob3)
+endo.bm.dredge4 <- dredge(endo.bm.glob4)
+endo.bm.dredge5 <- dredge(endo.bm.glob5)
+endo.bm.dredge6 <- dredge(endo.bm.glob6)
+endo.bm.dredge7 <- dredge(endo.bm.glob7)
+head(endo.bm.dredge1,10)
+head(endo.bm.dredge2,10)
+head(endo.bm.dredge3,10)
+head(endo.bm.dredge4,10)
+head(endo.bm.dredge5,10)
+head(endo.bm.dredge6,10)
+head(endo.bm.dredge7,10)
+
+# The best model with both glmer() and glmmadmb():
+# endo.bm.best <- glmer(endo.bm ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+
+endo.bm.best <- glmmadmb(I(endo.bm+0.0001) ~ age_class + scl.pH + (1|field.ID) + offset(log(area)) ,data=data[-c(69,70,71,72),],family="gamma") 
+
+endo.bm.best2 <- glmmadmb(endo.bm ~ age_class + scl.mc + (1|field.ID) + offset(log(area)) ,data=data,family="gaussian", zeroInflation=TRUE) 
+````
+
+
+##### Model Validation
+```{r ModelValidation1_anc}
+summary(endo.bm.best)
+summary(aov(endo.bm.best))
+
+confint(endo.bm.best)
+coefplot2(endo.bm.best)
+
+## Model validation ####
+E1 <- resid(endo.bm.best, type="response")
+F1 <- fitted(endo.bm.best, type="response")
+P1 <- predict(endo.bm.best, type="response")
+
+plot(F1, E1)
+abline(h = 0, v=0, lty=2)
+data$field[[69]]
+
+plot(F1, P1)
+abline(h = 0, v=0, lty=2)
+
+plot(data$pH, E1)
+abline(h = 0, v=0, lty=2)
+
+# negative fitted values:
+which(F1<0)
+
+# Dataset with all variables IN the model
+env1 <- cbind(E1, F1, data[-c(69,70,71,72),c("endo.bm", "age_class", "pH", "mc")])
+# covariates NOT in the model
+env0 <- cbind(E1, F1,data[-c(69,70,71,72),c(  "cn", "clay", "ats1", "hum1")])
+env01 <- cbind(E1, F1,data[-c(69,70,71,72),c(  "ats2" ,"dgO", "samcam")])
+
+# plot residual versus all covariates in the model
+par(mfrow=c(3,2),
+     mar=c(3.8,4,1,3))
+for (i in 1:length(env1)) {
+  scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i], ylab="Residuals")
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+
+# plot residual versus all covariates NOT in the model
+par(mfrow=c(2,3),
+    mar=c(3.8,4,1,3))
+for (i in 1:length(env0)) {
+  scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+
+par(mfrow=c(2,3),
+    mar=c(3.8,4,1,3))
+for (i in 1:length(env01)) {
+  scatter.smooth(env01[,i],env01[,1], xlab=colnames(env01)[i])
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+
+# Plots of Predicted Values
+par(mfrow=c(2,2))
+plot(data$age_class,predict(endo.bm.best, type="response"))
+plot(data$samcam,predict(endo.bm.best, type="response"))
+plot(data$mc,predict(endo.bm.best, type="response"))
+plot(data$pH,predict(endo.bm.best, type="response"))
+
+# Plots of fitted Values
+par(mfrow=c(2,2))
+plot(data$age_class,F1)
+plot(data$samcam,F1)
+plot(data$mc,F1)
+plot(data$pH,F1)
+
+par(lo)
+```
+
+Model validation 2
+```{r ModelValidation2_endo.bm,fig.width=8, fig.height=7}
+# Model Validation 
+
+E <- resid(endo.bm.best, type="response")
+
+par(mfrow=c(2,2))
+par(mar=c(5,5,2,3))
+plot(E~fitted(endo.bm.best), ylab=" Residuals", xlab="Fitted values") 
+abline(h=0, lty=2)
+hist(E, main = "", breaks = 20, cex.lab = 1.5, xlab = "Response Residuals")
+plot(E ~ data$age_class, ylab="Residuals", xlab="Age Class")
+abline(h=0, lty=2)
+plot(E ~ I(data$ats1^2), ylab="Residuals", xlab="Average temperature (30d)")
+abline(h=0, lty=2)
+````
+
+
+##### Post-Hoc Multicomparisons
+```{r PostHocMulticomparisons_anc}
+# Pairwise comparisons
+endo.bm.pairwise <- glht(endo.bm.best, mcp(age_class = "Tukey"))
+endo.bm.pw.ci <- confint(endo.bm.pairwise)
+
+names(endo.bm.pw.ci)
+endo.bm.pw.sig <- which(endo.bm.pw.ci$confint[,2]>0)
+data.frame(names(endo.bm.pw.sig))
+
+
+# Plot Errorbars
+ggplot(endo.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
+
+# plot confidence intervals
+
+par(mar=c(2,15,2,2))
+plot(endo.bm.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
+
+```
+
+
+##### Extract Predictions and plot predictions with error bars
+```{r ExtractPredicitons}
+endo.bm.td = expand.grid(age_class=unique(data$age_class),
+                        scl.pH = mean(data$scl.ats1),
+                        area = 1)
+
+endo.bm.pred <- cbind(endo.bm.td, predict(endo.bm.best, newdata = endo.bm.td, interval = "confidence")) 
+
+data$samcam2 <-  data$samcam # duplicate variable samcam to change facet labels
+#revalue
+
+
+ggplot(endo.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
+  geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
+  geom_hline(xintercept = 1) +
+  ylab("Biomass [g]") +
+  xlab("Age Class") +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+  mytheme
+
+
+endo.bm.pred <- within(endo.bm.pred, {
+  AIC <- AIC(endo.bm.best)
+  Rrandom <- summary(lm(fitted(endo.bm.best)~ data$endo.bm))$adj.r.squared
+  Rsquared <- summary(lm(predict(endo.bm.best, type="response")~ data$endo.bm))$adj.r.squared  
+})
+head(endo.bm.pred)
+
+endo.bm.stat = round(summary(endo.bm.best)$coefficients[, c(3,4)],4)
+endo.bm.coef = coeftab(endo.bm.best)
+
+endo.bm.env <- glmmadmb(endo.bm ~ samcam + I(ats1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+endo.bm.pvalue <- anova(endo.bm.env, endo.bm.best)$"Pr(>Chi)"
+
+endo.bm.OUT1 = endo.bm.pred
+endo.bm.OUT2 = cbind(endo.bm.stat,endo.bm.coef,LogLikP=endo.bm.pvalue[2],fixef=fixef(endo.bm.best))
+````
+
+```{r WriteOut}
+#write.table(anc.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(anc.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+```
+
+```{r PredictionPlot2}
+  endo.bm.td = expand.grid(age_class=unique(data$age_class),
+                     scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1),by=0.2),
+                     area = 1)
+
+  endo.bm.pred <- cbind(	endo.bm.td, predict(	endo.bm.best, newdata = 	endo.bm.td, interval = "confidence")) 
+
+ggplot(	endo.bm.pred, aes(x = scl.ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_errorbar(position = position_dodge(1)) + 
+  geom_point(position = position_dodge(1)) +
+  facet_grid(.~age_class) +
+  mytheme
+```
+
+
+```{r}
+endo.bm.td = expand.grid(age_class=unique(data$age_class),
+                        area = 1)
+
+endo.bm.pred <- cbind(endo.bm.td, predict(endo.bm.best2, newdata = endo.bm.td, interval = "confidence")) 
+
+data$samcam2 <-  data$samcam # duplicate variable samcam to change facet labels
+#revalue
+
+
+ggplot(endo.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
+  geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
+  geom_hline(xintercept = 1) +
+  ylab("Biomass [g]") +
+  xlab("Age Class") +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+  mytheme
+```
+
 
 
 
