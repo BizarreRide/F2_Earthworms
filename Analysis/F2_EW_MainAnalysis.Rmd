@@ -1,10 +1,9 @@
 ---
 title: "F2_Earthworms"
 author:
-  - name: FirstName LastName
-    email: name@company.com
+  - name: Quentin Schorpp
+    email: quentin.schorpp@ti.bund.de
 date: "`r Sys.Date()`"
-e-mail: quentin.schorpp@ti.bund.de
 output: 
       html_document:
           toc: true
@@ -13,6 +12,7 @@ output:
           fig_caption: true
           theme: cerulean
           highlight: haddock
+          
 ---
 ```{r SetGlobalOptions, include=FALSE}
 knitr::opts_chunk$set(fig.align="center",
@@ -62,12 +62,14 @@ overdisp_fun <- function(model) {
 
 
 # Introduction  
+****************************************************************************************************************************
 
 # Materials and methods  
+****************************************************************************************************************************
 
 # Analysis
+****************************************************************************************************************************
 
-*******************************************************************************************
 ### Variable Descriptions  
 
 Earthworm species:             || Environmental:
@@ -109,6 +111,7 @@ ________________________________________________________________________________
   * _BM = Biomass values for Earthworm species in [g]  
 
 ___________________________________________________________________________________________________
+
 
 ## Exploratory Data Analysis (EDA)
 **********************************
@@ -489,7 +492,6 @@ Dispersion
 #----
 ```
 _________________________________________________________________________________________
-
 
 
 ## General linear Mixed Effects Models with 1st order Data
@@ -1997,16 +1999,13 @@ ggplot(endo.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = ex
   mytheme
 ```
 
-
-
-
 # Results
-
+*************************************************************************************************************************
 ### README
 ```{r CreateREADME.md, }
 #setwd("D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms/")
 knitr::knit(input="README.Rmd", output="README.md") # Error: no such file or directory, when trying knitHTML
 ```
-
+***
 
 

@@ -1,0 +1,78 @@
+---
+title: "Anecic Abundance"
+author:
+  - name: Quentin Schorpp
+    email: qurntin.schorpp@ti.bund.de
+date: "`r Sys.Date()`"
+output: 
+      html_document:
+          toc: true
+          toc_depth: 2
+          number_sections: true
+          fig_caption: true
+          theme: cerulean
+          highlight: haddock
+          
+---
+```{r SetGlobalOptions, include=FALSE}
+knitr::opts_chunk$set(fig.align="center",
+                      message=FALSE,
+                      error=FALSE,
+                      warning=FALSE,
+                      echo=FALSE)
+
+options(scipen=1, digits=2)
+```
+
+
+# Introduction  
+
+I investigated how earthworm communities change in perennial energy farming systems. To assess the development in the long term, I chose an approach called Space-for-Time Substitution (Pickett, 1989). Instead of sampling sites over a long time period, I studied different aged sites. The sites were cropped either with the perennial bioenergy plant cup-plant (*Silphium perfoliatum*) or with annual Maize (*Zea mays*). The Main question of this investigation is wether older cup plant fields possess higher structural and functional biodiversity than younger ones and to compare cup-plant to maize. To distinguish the age-effect from environmental influences, several parameters regarding soil properties, climate and Management were collected.
+Sampling took place 3-4 times in two consecutive years. In total 18 sites were surveyed, comprising 4 cup-plant age classes and maize. The sites were located at seven different locations, comprising fields from research and business. Each cup-plant age-class had three replicates, whereas maize plants were switched in the second year of sampling due to crop rotation and gained six replicates. To sample earthworms 4 pits with 0.25 m² were digged up to 20 cm in depth and both handsorting of soil and chemical extractioon with AITC took place. These 4 pits were randomly chosen at the field, hence they're nested in field.
+9 earthworm species from 3 different ecological groups were identified and weighed.
+
+Here I present the modeling of the abundance data of earthworms from the ecological group of anecic earthworms. 
+
+## Modeling procedure:
+
+* I start with a global model, with a full set of parameters. 
+  
+    + The choice of parameters took place according to preknowledge  about the biology of earthworms. 
+    + Management parameters, are not included up to now. 
+
+* Since Abundance is count data, i choose poisson distribution in the first place, and switch to negative binomial if overdipersion can be detected.
+
+* As random effects i chose field. I could have chosen sampling campaign, too and analyse the model with crossed random effects structure, but I'm also interested in change over the time of sampling.
+
+* I included an offset "area", since i want to present the data per m² not per 0.25 m².
+
+* several global models were formulated if there are different combinations of parameters, meaningful for analysis, but not able to analyse at once, i.e. because of  collinearity.
+
+* Then I use Multimodel Inference/Averaging to find the model with the lowest AIC and determine it as the best model.
+
+* Model validation is performed by 
+
+    + plotting residuals against all covariates in the model as well as against all covariates not in the model
+    + plotting a histogram of the residual
+    + checking for overdispersion
+
+* after having found a model with good model fit, i present the data for the means of environmental covariates and plot barplots for the age classes.
+
+* errorbars are calculated, using the inverse link function with confidence intervals.
+
+* Post-Hoc Multicomparisons are performed using Tukey Test with the glht() function.
+
+
+
+# Materials and methods  
+
+# Analysis
+
+# Results
+
+```{r CreateREADME.md, }
+# knit(input="README.Rmd", output="README.md")
+```
+
+
+
