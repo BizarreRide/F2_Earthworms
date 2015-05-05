@@ -8,9 +8,6 @@
 # Load data
 CNpercent <- read.delim("Data/CNpercent.txt")
 
-summary(CNpercent$Feld)
-str(CNpercent)
-
 # create field ID to maintain row order
 CNpercent$field.ID <- rep(1:45,each=5)
 

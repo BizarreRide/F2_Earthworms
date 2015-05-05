@@ -40,13 +40,20 @@ options(scipen=1, digits=2)
 * Assessing variability of random effects, from where have i got this??
 
 ## 3. Modeling
-### 3.1 Model Validation
+
+### 3.1 Model Formulation
+
+* must the non-squared term be included if the squared term is?
+
+### 3.2 Model Validation
 
 * Which plots are necessary for model validation?
 * Which tests are necessary for model validation?
 * When do i know, that the model is successfully validated?
+* How can i calculate variance inflation factors?
+* When the squared term is included, do i have to check residuals against it?
 
-### 3.2 Model Output
+### 3.3 Model Output
 
 * where is the difference between poisson glmer() and glmmadmb() ?
 * How can i produce predicition plots for continous covariates disregarding the fators??
@@ -56,6 +63,8 @@ options(scipen=1, digits=2)
 
 * How should the Main Analysis file be organised?
 * Should the Main Analysis file be a RMD file?
+
+
 
 
 

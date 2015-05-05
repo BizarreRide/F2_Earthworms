@@ -29,16 +29,16 @@ set.seed(1234)
 ```{r LoadData, results='hide'}
 # Load Data
 #setwd("D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms/")
-source("Data/GatherSource/Gather1.R")
+source("Data/GatherSource/Gather1.R") # Includes Correction for Watercontent
 source("Data/GatherSource/Gather2.R")
-source("Data/GatherSource/Gather3.R")
-source("Data/GatherSource/WaterContent.R")
+source("Data/GatherSource/Gather3.R") # no adult endogeics separated
+source("Data/GatherSource/CNRatio.R") # only for 1st order
 ```
 
 ```{r RequiredPackages}
 source("Analysis/F2_EW_RequiredPackages.R")
-source("Data/GatherSource/coldiss.R")
-source("Data/GatherSource/panelutils.R")
+source("Data/GatherSource/Functions/coldiss.R")
+source("Data/GatherSource/Functions/panelutils.R")
 source("Data/GatherSource/ggplotTheme.R")
 
 lo <- par(mfrow=c(1,1))

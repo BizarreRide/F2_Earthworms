@@ -11,7 +11,8 @@
 # 2nd Order Data
 
 # data2 <- read.table("data/F2_EW_Total.txt", header=T)
-data2 <- data[,-c(68:78)]
+
+data2 <- data[,-c(68:79)] # remove Biodiversity Indices + Functional Groups
 
 
 # Explanatory variablaes
@@ -19,7 +20,7 @@ data21 <- data2[,-c(which(colnames(data2)=="hole"):which(colnames(data2)=="UNK_B
 data21 <- unique(data21[,-1])
 
 # Response variables
-data22 <- data2[,c(which(colnames(data2)=="hole"):which(colnames(data2)=="UNK_BM") )]
+data22 <- data2[,c(which(colnames(data2)=="hole"):which(colnames(data2)=="UNK_BM"))]
 data22 <- aggregate(.~interaction(data2$field.ID,data2$samcam),data22[,-1], sum)
 
 data2 <- cbind(data21,data22[,-1])
@@ -64,3 +65,17 @@ data2$J <- data2$H/log(data2$SR)
 
 rm(spe,bm, data21, data22)
 
+# Separate abundance data of endogeic earthworms into adult and juveniles
+# Separation took place a priori with an Excel Pivot-table
+
+EndoAdult <- read.delim("~/git_repositories/F2_Earthworms/Data/F2_EW_EndoAdult.txt")
+
+EndoAdult$OCY <- EndoAdult$OCYa + EndoAdult$OCYj 
+
+# Response variables
+data23 <- EndoAdult[,c(which(colnames(EndoAdult)=="hole"):which(colnames(EndoAdult)=="OCY"))]
+data23 <- aggregate(.~interaction(data$field.ID,data$samcam),data23[,-1], sum)
+
+data2$endad <- rowSums(data23[,c("ACAad", "ACHad", "AROad", "ENDad","OCY","OLA")])
+
+rm(EndoAdult, data23)
