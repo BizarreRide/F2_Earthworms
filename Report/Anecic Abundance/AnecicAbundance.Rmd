@@ -336,6 +336,7 @@ plot(anc.pw.ci) # only maize is significantly different from all SIlphie fields.
 ```{r ExtractPredicitons, echo=TRUE}
 
 # create test data set with all covariates IN the model
+# to predict for age_class only, take the mean of all continous covariates
 anc.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
                      scl.ats1 = mean(data$scl.ats1),
@@ -347,18 +348,20 @@ anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confid
 # Rename samcam for facetting
 anc.pred$samcam2 <- plyr::revalue(anc.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
 
-
 # plot predictions with error bars // confidence intervals???
 ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
   geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
   geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
-  facet_grid(.~samcam) +
+  facet_grid(.~samcam2) +
   geom_hline(xintercept = 1) +
   ylab("Abundance Ind./m²") +
   xlab("Age Class") +
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
   mytheme
+````
 
+Coefficients and Statistics
+```{r}
 # Claculate a whole lot of coefficients and statistics
 anc.pred <- within(anc.pred, {
   AIC <- AIC(anc.best)

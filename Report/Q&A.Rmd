@@ -43,6 +43,8 @@ options(scipen=1, digits=2)
 
 ### 3.1 Model Formulation
 
+* Do I have to compare AIC between Models with different distribution assumptions?
+* Do I have to compare AIC between Models with different datasubsets?
 * must the non-squared term be included if the squared term is?
 
 ### 3.2 Model Validation
@@ -58,6 +60,7 @@ options(scipen=1, digits=2)
 * where is the difference between poisson glmer() and glmmadmb() ?
 * How can i produce predicition plots for continous covariates disregarding the fators??
 * What are the important "things" to report?
+* What are the error bars? Confidence intervals or standard errors?
 
 ## 4. Project structure/Reproducible research
 
