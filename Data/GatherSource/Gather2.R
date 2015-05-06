@@ -68,7 +68,7 @@ rm(spe,bm, data21, data22)
 # Separate abundance data of endogeic earthworms into adult and juveniles
 # Separation took place a priori with an Excel Pivot-table
 
-EndoAdult <- read.delim("~/git_repositories/F2_Earthworms/Data/F2_EW_EndoAdult.txt")
+EndoAdult <- read.delim("Data/F2_EW_EndoAdult.txt")
 
 EndoAdult$OCY <- EndoAdult$OCYa + EndoAdult$OCYj 
 

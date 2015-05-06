@@ -20,7 +20,7 @@ knitr::opts_chunk$set(fig.align="center",
                       error=FALSE,
                       warning=FALSE,
                       echo=FALSE)
-knitr::opts_knit$set(root.dir = 'C:/Users/Quentin/Documents/git_repositories/F2_Earthworms')
+knitr::opts_knit$set(root.dir = 'D://Quentin_Schorpp//Arbeitsprozess//git_repositories//F2_Earthworms')
 
 options(scipen=1, digits=2)
 set.seed(1234)
@@ -161,7 +161,7 @@ boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within s
 ##### Model Formulation
 
 Find the best model using function dredge(). Begin with three different global models.
-```{r GLMM_anc, cache=TRUE, echo=TRUE}
+```{r GLMM_anc, cache=TRUE, echo=TRUE, eval=FALSE}
 # Global Model
 
 # str(data)
@@ -194,7 +194,7 @@ Dispersion
 ````
 
 Fit the best model
-```{r BestModel, cache=TRUE}
+```{r BestModel, cache=TRUE, echo=TRUE}
 # The best model with both glmer() and glmmadmb():
 # anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 anc.best <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) +  (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
@@ -361,7 +361,7 @@ ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(up
 ````
 
 Coefficients and Statistics
-```{r}
+```{r, echo=TRUE}
 # Claculate a whole lot of coefficients and statistics
 anc.pred <- within(anc.pred, {
   AIC <- AIC(anc.best)

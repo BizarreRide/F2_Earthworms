@@ -1,0 +1,457 @@
+---
+title: "Endogeic Biomass"
+author:
+  - name: Quentin Schorpp
+    email: qurntin.schorpp@ti.bund.de
+date: "`r Sys.Date()`"
+output: 
+      html_document:
+          toc: true
+          toc_depth: 3
+          number_sections: true
+          fig_caption: true
+          theme: cerulean
+          highlight: haddock
+          
+---
+```{r SetGlobalOptions, include=FALSE}
+knitr::opts_chunk$set(fig.align="center",
+                      message=FALSE,
+                      error=FALSE,
+                      warning=FALSE,
+                      echo=FALSE)
+knitr::opts_knit$set(root.dir = 'D://Quentin_Schorpp//Arbeitsprozess//git_repositories//F2_Earthworms')
+
+options(scipen=1, digits=2)
+set.seed(1234)
+```
+
+
+# Introduction  
+
+I investigated how earthworm communities change in perennial energy farming systems. To assess the development in the long term, I chose an approach called Space-for-Time Substitution (Pickett, 1989). Instead of sampling sites over a long time period, I studied different aged sites. The sites were cropped either with the perennial bioenergy plant cup-plant (*Silphium perfoliatum*) or with annual Maize (*Zea mays*). The Main question of this investigation is wether older cup plant fields possess higher structural and functional biodiversity than younger ones and to compare cup-plant to maize. To distinguish the age-effect from environmental influences, several parameters regarding soil properties, climate and Management were collected.
+Sampling took place 3-4 times in two consecutive years. In total 18 sites were surveyed, comprising 4 cup-plant age classes and maize. The sites were located at seven different locations, comprising fields from research and business. Each cup-plant age-class had three replicates, whereas maize plants were switched in the second year of sampling due to crop rotation and gained six replicates. To sample earthworms 4 pits with 0.25 m² were digged up to 20 cm in depth and both handsorting of soil and chemical extractioon with AITC took place. These 4 pits were randomly chosen at the field, hence they're nested in field.
+9 earthworm species from 3 different ecological groups were identified and weighed.
+
+Here I present the modeling of the biomass data of earthworms from the ecological group of endogeic earthworms. 
+
+# Materials and methods  
+
+I use R with RStudio to perform all analyses. For creating reports i use knitr with RStudio.
+
+## Modeling procedure:
+
+* I start with a global model, with a full set of parameters. 
+  
+    + The choice of parameters took place according to preknowledge  about the biology of earthworms. 
+    + Management parameters, are not included up to now. 
+
+* Since Abundance is count data, i choose poisson distribution in the first place, and switch to negative binomial if overdipersion can be detected.
+
+* As random effects i chose field. I could have chosen sampling campaign, too and analyse the model with crossed random effects structure, but I'm also interested in change over the time of sampling.
+
+* I included an offset "area", since i want to present the data per m² not per 0.25 m².
+
+* several global models were formulated if there are different combinations of parameters, meaningful for analysis, but not able to analyse at once, i.e. because of  collinearity.
+
+* Then I use Multimodel Inference/Averaging to find the model with the lowest AIC and determine it as the best model.
+
+* Model validation is performed by 
+
+    + plotting residuals against all covariates in the model as well as against all covariates not in the model
+    + plotting a histogram of the residual
+    + checking for overdispersion
+
+* after having found a model with good model fit, i present the data for the means of environmental covariates and plot barplots for the age classes.
+
+* errorbars are calculated, using the inverse link function with confidence intervals.
+
+* Post-Hoc Multicomparisons are performed using Tukey Test with the glht() function.
+
+# Analysis
+
+```{r LoadData, results='hide', fig.show='hide'}
+# Load Data
+#setwd("D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms/")
+source("Data/GatherSource/Gather1.R") # Includes Correction for Watercontent
+source("Data/GatherSource/Gather2.R")
+source("Data/GatherSource/Gather3.R") # no adult endogeics separated
+source("Data/GatherSource/CNRatio.R") # only for 1st order
+```
+
+```{r RequiredPackages}
+source("Analysis/F2_EW_RequiredPackages.R")
+source("Data/GatherSource/Functions/coldiss.R")
+source("Data/GatherSource/Functions/panelutils.R")
+source("Data/GatherSource/ggplotTheme.R")
+
+lo <- par(mfrow=c(1,1))
+
+overdisp_fun <- function(model) {
+  ## number of variance parameters in 
+  ##   an n-by-n variance-covariance matrix
+  vpars <- function(m) {
+    nrow(m)*(nrow(m)+1)/2
+  }
+  model.df <- sum(sapply(VarCorr(model),vpars))+length(fixef(model))
+  rdf <- nrow(model.frame(model))-model.df
+  rp <- residuals(model,type="pearson")
+  Pearson.chisq <- sum(rp^2)
+  prat <- Pearson.chisq/rdf
+  pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+  c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+
+```
+
+
+### Data Pre-Processing  
+#### Standardize Explanatory Variables  
+
+```{r DataProcessing,}
+
+## Create variable d(delta)samcam as the time difference of each sampling date to the first date, that each field was sampled; first date is Zero for all fields. ####
+data$dsamcam <- with(data, round(c(rep(0,60),date[61:120]-date[1:60],date[121:180]-date[1:60]),0))
+
+## Standardize all explanatory variables ####
+
+# extract all numerical variables
+std.var <- data[sapply(data,is.numeric)]
+# exclude all response variables
+std.var <- std.var[,-c(7:30,49:58)]
+
+# standardize, each column is divided by their standard deviation, and the mean of each column is subtracted 
+std.var <- as.data.frame(scale(std.var, center=TRUE, scale=TRUE))
+colnames(std.var) <- paste("scl", colnames(std.var), sep = ".") # rename columns
+
+data$area <- rep(0.25,180)
+
+data <- cbind(data, std.var)
+
+
+# Ordered or not??
+# Since i found it too difficult to handle, i used non-ordered factors
+data$age_class <- factor(data$age_class, ordered=TRUE)
+data$samcam <- factor(data$samcam, ordered=FALSE)
+
+#----
+```
+
+
+### Endogeic Biomass
+**********************
+
+
+#### Assess variability of random effects
+```{r BoxPlots,echo=FALSE}
+par(lo)
+
+# Variability within sites
+boxplot(endo.bm~age_class, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+
+# variability within sampling campaigns
+boxplot(endo.bm~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+
+# variability within sites and sampling campaigns
+boxplot(endo.bm~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+
+dotchart(data$endo.bm, main="Cleveland dotplot for endogeic biomass")
+
+```
+ 
+ 
+#### xy plots for linear realtionships and interactions
+```{r xyplots, eval=FALSE}
+xyplot(endo.bm~pH|age_class,data=data)
+xyplot(endo.bm~cn|age_class,data=data)
+xyplot(endo.bm~clay|age_class,data=data)
+xyplot(endo.bm~mc|age_class,data=data) 
+xyplot(endo.bm~cn|pH,data=data) 
+````
+
+
+#### GLMM using glmmADMB
+
+
+##### Model Formulation
+
+Global Model and Multimodel Inference
+```{r GLMM_anc, cache=TRUE, eval=FALSE, echo=TRUE}
+## check data ####
+str(data)
+
+# Percentage of zero values in biomass data for anecic earthworms
+nrow(data[data$endo.bm==0,])/nrow(data)
+
+# Subset of all Biomass data not 0
+datax <- subset(data, endo.bm>0)
+
+# Outliers in CN ratio
+which(data$cn>15)
+data[which(data$cn>15),]$field
+
+# Eliminate outliers
+datay <- data[data$field!="EF_2011",]
+#####
+
+
+
+## Global Model Formulation ####
+## Formulate several global models with regard to Collinearity in environmental variables, outliers and zero values
+## [Note: First off, let's start with what a significant continuous by continuous interaction means. It means that the slope of one continuous variable on the response variable changes as the values on a second continuous change.]
+
+# Gamma Distribution
+####################
+
+# without zero values // -> hurdle models??
+## with soil moisture
+endo.bm.glob1 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datax,family="gamma")
+
+# adding small values to Zero 
+## With soil moisture
+endo.bm.glob2 <- glmmadmb(I(endo.bm+0.0001) ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gamma")
+
+## With average Temperature and humidity
+endo.bm.glob3 <- glmmadmb(I(endo.bm+0.0001) ~ age_class*samcam + I(scl.ats1^2) + scl.hum1 + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gamma")
+
+# Normal distribution
+#####################
+
+## With soil moisture
+## With total data
+endo.bm.glob3 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gaussian")
+# without zero biomass 
+endo.bm.glob4 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datax,family="gaussian")
+# without outliers for cn
+endo.bm.glob5 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=datay,family="gaussian")
+
+## With Average Temperature
+## With total data
+endo.bm.glob7 <- glmmadmb(endo.bm ~ age_class*samcam + I(scl.ats1^2) + scl.hum1 + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gaussian")
+
+# offset is used due to personal advice by T. Onkelinx:
+# "You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model."
+#####
+
+## Multimodel averaging ####
+endo.bm.dredge1 <- dredge(endo.bm.glob1)
+endo.bm.dredge2 <- dredge(endo.bm.glob2)
+endo.bm.dredge3 <- dredge(endo.bm.glob3)
+endo.bm.dredge4 <- dredge(endo.bm.glob4)
+endo.bm.dredge5 <- dredge(endo.bm.glob5)
+endo.bm.dredge6 <- dredge(endo.bm.glob6)
+endo.bm.dredge7 <- dredge(endo.bm.glob7)
+head(endo.bm.dredge1,10)
+head(endo.bm.dredge2,10) # best AICc + total data
+head(endo.bm.dredge3,10)
+head(endo.bm.dredge4,10)
+head(endo.bm.dredge5,10)
+head(endo.bm.dredge6,10)
+head(endo.bm.dredge7,10)
+#####
+````
+
+Fit the best model
+```{r, eval=-2, cache=TRUE, echo=TRUE}
+# The best model with both glmer() and glmmadmb():
+endo.bm.best <- glmer(I(endo.bm+0.0001) ~ age_class + scl.pH + (1|field.ID) + offset(log(area)), data=data, family=Gamma)
+
+endo.bm.best <- glmmadmb(I(endo.bm+0.0001) ~ age_class + scl.pH + (1|field.ID) + offset(log(area)) ,data=data, family="gamma") 
+
+# To exclude large fitted values: data[-c(69,70,71,72),]
+````
+
+Summary output
+```{r Summary_endo.bm, echo=TRUE}
+# Summary output
+summary(endo.bm.best)
+
+# ANOVA output
+summary(aov(endo.bm.best))
+```
+
+
+##### Model Validation
+
+```{r ModelValidation1_endo.bm, echo=TRUE}
+# Confidence Intervals
+confint(endo.bm.best)
+coefplot2(endo.bm.best)
+
+## Model validation ####
+E1 <- resid(endo.bm.best, type="response")
+F1 <- fitted(endo.bm.best, type="response")
+P1 <- predict(endo.bm.best, type="response")
+
+# Check Model outputs
+par(mfrow=c(2,2),
+    mar=c(4,4.5,1,2))
+# Plot fitted vs. residuals
+scatter.smooth(F1, E1, cex.lab = 1.5, ylab=" Residuals", xlab="Fitted values")
+abline(h = 0, v=0, lty=2)
+data$field[[69]]
+
+# plot fitted vs. predicted
+scatter.smooth(F1, P1, cex.lab = 1.5, ylab=" Residuals", xlab="Predicted values")
+abline(h = 0, v=0, lty=2)
+
+# Histogram of Residuals
+hist(E1, prob=TRUE, main = "", breaks = 20, cex.lab = 1.5, xlab = "Response Residuals", col="PapayaWhip")
+lines(density(E1), col="light blue", lwd=3)
+lines(density(E1, adjust=2), lty="dotted", col="darkgreen", lwd=2) 
+
+par(lo)
+
+# negative fitted values:
+which(F1<0)
+
+## Residuals vs. covariates ####
+
+# Dataset with all covariates IN the model
+env1 <- cbind(E1, data[,c("endo.bm", "age_class", "pH")])
+# covariates NOT in the model
+env0 <- cbind(E1, data[,c(  "cn", "clay", "mc","samcam")])
+env01 <- cbind(E1, data[,c(  "ats1", "ats2" ,"hum1", "dgO")])
+
+# plot residual versus all covariates in the model 
+par(mfrow=c(2,2),
+     mar=c(3.8,4,1,3))
+for (i in 2:length(env1)) {
+  scatter.smooth(env1[,i],env1[,1], xlab=colnames(env1)[i], ylab="Residuals")
+  abline(h=0, lty=2, col="red")
+}
+
+# plot residual versus all covariates NOT in the model
+par(mfrow=c(2,2),
+    mar=c(3.8,4,1,3))
+for (i in 2:length(env0)) {
+  scatter.smooth(env0[,i],env0[,1], xlab=colnames(env0)[i])
+  abline(h=0, lty=2, col="red")
+}
+
+par(mfrow=c(2,2),
+    mar=c(3.8,4,1,3))
+for (i in 2:length(env01)) {
+  scatter.smooth(env01[,i],env01[,1], xlab=colnames(env01)[i])
+  abline(h=0, lty=2, col="red")
+}
+par(mfrow=c(1,1))
+#####
+
+## Some more plots ####
+# Plots of Predicted Values
+par(mfrow=c(2,2))
+plot(data$age_class,P1, ylab="Predicted values")
+plot(data$samcam,P1, ylab="Predicted values")
+plot(data$pH,P1, ylab="Predicted values")
+
+
+
+# Plots of fitted Values
+par(mfrow=c(2,2))
+plot(data$age_class,F1, ylab="Fitted values")
+plot(data$samcam,F1, ylab="Fitted values")
+plot(data$pH,F1, ylab="Fitted values")
+
+par(lo)
+#####
+```
+
+
+##### Post-Hoc Multicomparisons
+```{r PostHocMulticomparisons_endo.bm, echo=TRUE}
+# Pairwise comparisons
+endo.bm.pairwise <- glht(endo.bm.best, mcp(age_class = "Tukey"))
+endo.bm.pw.ci <- confint(endo.bm.pairwise)
+
+# Confidence intervals including zero
+endo.bm.pw.sig <- which(endo.bm.pw.ci$confint[,2]>0)
+data.frame(names(endo.bm.pw.sig))
+
+
+# Plot Errorbars
+ggplot(endo.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
+
+# plot confidence intervals
+par(mar=c(2,15,2,2))
+plot(endo.bm.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
+
+```
+
+
+##### Extract Predictions and plot predictions with error bars
+```{r ExtractPredicitons_endo.bm, echo=TRUE}
+# create test data set with all covariates IN the model
+# to predict for age_class only, take the mean of all continous covariates
+endo.bm.td = expand.grid(age_class=unique(data$age_class),
+                        scl.pH = mean(data$scl.pH),
+                        area = 1)
+
+# calculate confidence intervals for predictions from test dataset
+endo.bm.pred <- cbind(endo.bm.td, predict(endo.bm.best, newdata = endo.bm.td, interval = "confidence")) 
+
+# plot predictions with error bars // confidence intervals???
+ggplot(endo.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
+  geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
+  geom_hline(xintercept = 1) +
+  ylab("Biomass [g]") +
+  xlab("Age Class") +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+  mytheme
+````
+
+
+Coefficients and Statistics
+```{r, echo=TRUE}
+# Claculate a whole lot of coefficients and statistics
+endo.bm.pred <- within(endo.bm.pred, {
+  AIC <- AIC(endo.bm.best)
+  Rrandom <- summary(lm(fitted(endo.bm.best)~ data$endo.bm))$adj.r.squared
+  Rsquared <- summary(lm(predict(endo.bm.best, type="response")~ data$endo.bm))$adj.r.squared  
+})
+head(endo.bm.pred)
+
+endo.bm.stat = round(summary(endo.bm.best)$coefficients[, c(3,4)],4)
+endo.bm.coef = coeftab(endo.bm.best)
+
+endo.bm.env <- glmmadmb(endo.bm ~ scl.pH + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+endo.bm.pvalue <- anova(endo.bm.env, endo.bm.best)$"Pr(>Chi)"
+
+endo.bm.OUT1 = endo.bm.pred
+endo.bm.OUT2 = cbind(endo.bm.stat,endo.bm.coef,LogLikP=endo.bm.pvalue[2],fixef=fixef(endo.bm.best))
+endo.bm.OUT1
+endo.bm.OUT2
+````
+
+```{r WriteOut}
+#write.table(anc.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(anc.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+```
+
+```{r PredictionPlot2}
+  endo.bm.td = expand.grid(age_class=unique(data$age_class),
+                     scl.pH = seq(min(data$scl.pH),max(data$scl.pH),by=0.2),
+                     area = 1)
+
+  endo.bm.pred <- cbind(  endo.bm.td, predict(	endo.bm.best, newdata = 	endo.bm.td, interval = "confidence")) 
+
+ggplot(	endo.bm.pred, aes(x = scl.pH, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_errorbar(position = position_dodge(1)) + 
+  geom_point(position = position_dodge(1)) +
+  facet_grid(.~age_class) +
+  mytheme
+```
+
+# Results
+
+```{r CreateREADME.md, }
+# knit(input="README.Rmd", output="README.md")
+```
+
+
+
