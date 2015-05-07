@@ -22,3 +22,5 @@ cn <- cn[rep(seq_len(nrow(cn)), each=4),]
 data$cn <- cn$cn
 data$c <- cn$C
 data$n <- cn$N
+
+rm(CNpercent,cn)
