@@ -42,4 +42,18 @@ overdisp_fun <- function(model) {
   c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
 }
 
+whisk <- function(df,cond_col=1,val_col=2) {
+  require(reshape2)
+  condname <- names(df)[cond_col]
+  names(df)[cond_col] <- "cond" 
+  names(df)[val_col] <- "value"
+  b <- boxplot(value~cond,data=df,plot=FALSE)
+  df2 <- cbind(as.data.frame(b$stats),c("min","lq","m","uq","max"))
+  names(df2) <- c(levels(df$cond),"pos")
+  df2 <- melt(df2,id="pos",variable.name="cond")
+  df2 <- dcast(df2,cond~pos)  
+  names(df2)[1] <- condname
+  df2
+}
+
 ##############################################################
