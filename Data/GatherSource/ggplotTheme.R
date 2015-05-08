@@ -11,8 +11,8 @@ library(extrafont)
 mytheme = 
   theme_bw() + 
   theme(plot.title = element_text(size=11,face="bold", family="Times New Roman"),
-        axis.title.x = element_text(size=8,face="bold", family="Times New Roman"),
-        axis.title.y = element_text(size=8, family="Times New Roman"),
+        axis.title.x = element_text(size=8, face="bold", family="Times New Roman"),
+        axis.title.y = element_text(size=8, face="bold", family="Times New Roman"),
         axis.text.x = element_text(size=7),        
         axis.text.y = element_text(size=7),        
         axis.line = element_line(size=0.25),

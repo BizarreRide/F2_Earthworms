@@ -39,6 +39,10 @@ options(scipen=1, digits=2)
 * Why are the error bars becoming larger and larger with the Order of the dataset?
 * Assessing variability of random effects, from where have i got this??
 
+### 2.1 Plotting
+
+* How can i make the legend symbols in ggplot smaller for barplots
+
 ## 3. Modeling
 
 ### 3.1 Model Formulation

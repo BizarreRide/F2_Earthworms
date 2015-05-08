@@ -82,13 +82,27 @@ data$J <- data$H/log(data$SR)
 # Separate abundance data of endogeic earthworms into adult and juveniles
 # Separation took place a priori with an Excel Pivot-table
 
-EndoAdult <- read.delim("Data/F2_EW_EndoAdult.txt")
+EndoAdult<- read.delim("Data/F2_EW_EndoAdult.txt")
 
 EndoAdult$OCY <- EndoAdult$OCYa + EndoAdult$OCYj 
 
 data$endad <- rowSums(EndoAdult[,c("ACAad", "ACHad", "AROad", "ENDad","OCY","OLA")])
 
-rm(EndoAdult)
+
+# Separate biomass data of endogeic earthworms into adult and juveniles
+# Separation took place a priori with an Excel Pivot-table
+
+EndoAdult_Bm <- read.delim("Data/F2_EW_EndoAdult_Bm.txt")
+
+EndoAdult_Bm$OCY <- EndoAdult_Bm$OCYa + EndoAdult_Bm$OCYj 
+
+data$endad.bm <- rowSums(EndoAdult_Bm[,c("ACAad", "ACHad", "AROad", "ENDad","OCY","OLA")])
+
+rm(EndoAdult, EndoAdult_Bm)
+
+#_______________________________________________________________________________
+
+
 
 ##################
 # Wassergehalte
@@ -103,7 +117,7 @@ moisture <- read.delim("Data/WC_Roh_Gesamt.txt")
 # Id to maintain row order
 moisture$superID <- rep(1:62,each=5)
 
-# create a factor to be able to correct for double measurements from Ronneberg
+# create a factor to be able to correct for double measurements from Ronneberg (2  Samplingdates)
 moisture$f.aid  <- factor(c(rep(1,300),rep(2,10)))
 
 # Create factor for building averages
@@ -123,24 +137,27 @@ moisture$gravimetric <- (moisture$water/moisture$TGNew)*100
 
 #####
 
-plot(moisture$f.scfield, moisture$water)
-scfield.variance <- tapply(moisture$water,moisture$f.scfield, var)
-points(scfield.variance, col="red")
+# Variance Inspection
+  # plot(moisture$f.scfield, moisture$water)
+  # scfield.variance <- tapply(moisture$water,moisture$f.scfield, var)
+  # points(scfield.variance, col="red", pch=19)
+
+# Due to Sabines lazy measurements, all water contents from spring have high variance
 
 # detect outlier in gravimetric water contents
-plot(moisture$f.scfield, moisture$gravimetric)
+  # plot(moisture$f.scfield, moisture$gravimetric)
 
 # eliminate outliers
 moisture.outlier <- subset(moisture, gravimetric<40)
-with(moisture.outlier, plot(f.scfield, gravimetric)) # make a new plot
+  # with(moisture.outlier, plot(f.scfield, gravimetric)) # make a new plot
 
 # samples with largest variance
 gravimetric.variance <- with(moisture.outlier, tapply(gravimetric,f.scfield, var))
-plot(gravimetric.variance)
+  # plot(gravimetric.variance)
 grvar <- which(gravimetric.variance>5)
 grvar1 <- names(grvar)
-moisture.outlier[moisture.outlier$f.scfield%in%grvar1,] # large varaince seems to be due to real varaince, no bias
-
+moisture.outlier[moisture.outlier$f.scfield%in%grvar1,c("field", "FG", "TGNew", "water", "gravimetric")] # large varaince seems to be due to real varaince, no bias
+# It is asumed to be due to true heterogeneity of the fields, hence not corrected
 
 # Calculate average gravimetric water content for field ad sampling campaign
 mc <- aggregate(gravimetric ~ f.scfield + superID, moisture.outlier,mean)
@@ -168,6 +185,5 @@ data$mc <- mc.ew$gravimetric
 
 # clean up:
 rm(mc, mc.ew, moisture, moisture.outlier, grvar, grvar1, scfield.variance, gravimetric.variance)
-
 
 

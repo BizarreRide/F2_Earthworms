@@ -13,7 +13,7 @@
 options(digits=3)
 
 # data.sqm <- read.table("data/F2_EW_Total.txt", header=T)
-data3 <- data2[,-c(66:77)]
+data3 <- data2[,-c(66:76)]
 data3$soil_tillage  <- as.numeric(data3$soil_tillage)
 data3$fertilisation <- as.numeric(data3$fertilisation)
 data3$weed_control <- as.numeric(data3$weed_control)
