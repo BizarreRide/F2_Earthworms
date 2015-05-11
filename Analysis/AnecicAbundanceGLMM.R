@@ -7,7 +7,7 @@
 
 
 ##############################################################
-# Data Pre Processing
+# Standardize Covariates
 source("Data/GatherSource/CovariateStandardization.R")
 ##############################################################
 
@@ -25,33 +25,46 @@ boxplot(anc~samcam, data,col="grey", main="Variability within sampling campaigns
 boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
 ##############################################################
 
+## GLMM using glmmADMB ####
 
 ##############################################################
 # Global model Formulation
 
-# I Formulate three different candidate models, 
+# I Formulate two different candidate models, 
 # since some covariates can't be used in the same model due to colinearity
 
 # Model Formulation
-anc.glob1 <- glmmadmb(anc ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.pH*scl.cn  +I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+anc.glob1 <- glmmadmb(anc ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.pH*scl.cn  + scl.hum1 + I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
 anc.glob2 <- glmmadmb(anc ~ age_class*samcam + scl.ats1 + I(scl.ats1^2) + scl.pH*scl.cn  +I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
+summary(anc.glob1)
 summary(anc.glob2)
 
 # Overdispersion
 E1 <- resid(anc.glob2, type="pearson")
 N <- nrow(data)
-p <- length(coef(anc.glob2)) # "+1" used with neg binomial distribution for determining the number of parameters(p) is due to the "k"
+p <- length(coef(anc.glob2)) #  "+1"  would be used negative in neg binomial distribution for determining the number of parameters (p) due to the "k" 
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 
 ## Multimodel averaging ####
-anc.dredge1 <- dredge(anc.glob1)
-anc.dredge2 <- dredge(anc.glob2)
+#anc.dredge1 <- dredge(anc.glob1)
 head(anc.dredge1,10)
+anc.avgmod1.d4 <- model.avg(anc.dredge1, subset = delta < 4)
+summary(anc.avgmod1.d4)
+importance(anc.avgmod.d4) 
+anc.avgmod.95p <- model.avg(anc.dredge1, cumsum(weight) <= .95)
+# AICc begins at 751.23
+
+#anc.dredge2 <- dredge(anc.glob2)
 head(anc.dredge2,10)
+anc.avgmod2.d4 <- model.avg(anc.dredge2, subset = delta < 4)
+summary(anc.avgmod2.d4)
+importance(anc.avgmod.d4) 
+anc.avgmod.95p <- model.avg(anc.dredge2, cumsum(weight) <= .95)
+# AICc ends at 743.64
 
 save(anc.dredge1, anc.dredge2, file="Analysis/AnecicDredge.RData")
 rm(anc.dredge1)
@@ -60,17 +73,17 @@ load("Analysis/AnecicDredge.RData")
 ##############################################################
 
 
-##############################################################
-# Fit the best model with both glmer() and glmmadmb():
-# anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+#####################################
+# Fit the best model
+# with both glmer() and glmmadmb():
+
+#anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 anc.best <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) +  (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 
 # **The best model includes an Interaction term!!!**
-##############################################################
 
 
-##############################################################
-# Summary output
+# Summary output 
 # summary
 summary(anc.best)
 
@@ -93,7 +106,9 @@ E1 <- resid(anc.best, type="pearson")
 F1 <- fitted(anc.best, type="response")
 P1 <- resid(anc.best, type="response")
 
-# Check Model outputs
+
+## Check Model assumptions ####
+
 par(mfrow=c(2,2),
     mar=c(4,4.5,1,2))
 # Plot fitted vs. residuals
@@ -110,7 +125,13 @@ hist(E1, prob=TRUE, main = "", breaks = 20, cex.lab = 1.5, xlab = "Response Resi
 lines(density(E1), col="light blue", lwd=3)
 lines(density(E1, adjust=2), lty="dotted", col="darkgreen", lwd=2) 
 
+# Normal QQ Plot
+qqplot(E1)
+
+# Cooks Distances
+
 par(lo)
+#####
 
 
 # Dataset with all variables IN the model
@@ -118,8 +139,8 @@ env1 <- cbind(E1, F1, data[,c("anc", "age_class", "samcam", "ats1")]) # should "
 # covariates NOT in the model
 env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "hum1","dgO")])
 
+## plot residual versus all covariates in the model ####
 
-# plot residual versus all covariates in the model
 par(mfrow=c(2,3),
     mar=c(3.8,4,1,3))
 for (i in 1:length(env1)) {
@@ -136,7 +157,7 @@ for (i in 1:length(env0)) {
   abline(h=0, lty=2, col="red")
 }
 par(lo)
-
+##### 
 
 ## Overdispersion ####
 N <- nrow(data)
@@ -146,16 +167,15 @@ Dispersion
 # glmer has less dispersion
 
 overdisp_fun(anc.best)
+#####
 
 ## Explained variation ####
 
-# Deviance
-logLik(anc.best) 
+r.squaredGLMM(anc.best)
 
-# Fraction of explained variation in the response variable
-100*((anc.best$null.deviance-anc.best$deviance)/anc.best$null.deviance) # failed
+#####
 
-
+## Some more plots ####
 # Plots of Predicted Values
 par(mfrow=c(2,2))
 plot(data$age_class,predict(anc.best, type="response"))
@@ -170,19 +190,69 @@ plot(data$samcam,F1)
 plot(data$ats1^2,F1)
 
 par(lo)
+##############################################################
 
 
 ##############################################################
-#Post-Hoc Multicomparisons
+#Post-Hoc Multicomparisons for age class
 
-# Model with the interaction term
+## Model with the interaction term ####
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
 anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 # summary(anc.tukey)
 
+# Pairwise comparisons (with interaction term)
+anc.pairwise <- glht(anc.tukey, mcp(ia.acl.smc = "Tukey"))
+anc.pw.ci <- confint(anc.pairwise)
 
-# Pairwise comparisons
+# Confidence intervals including 0
+anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
+data.frame(names(anc.pw.sig))
+#####
+
+
+## Pairwise comparisons (without interaction term) ####
 anc.pairwise <- glht(anc.best, mcp(age_class = "Tukey"))
+anc.pw.ci <- confint(anc.pairwise)
+
+# Confidence intervals including 0
+anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
+data.frame(names(anc.pw.sig))
+
+
+# Plot Errorbars
+ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
+
+# plot confidence intervals
+par(mar=c(2,15,2,2))
+plot(anc.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
+##############################################################
+
+
+##############################################################
+#Post-Hoc Multicomparisons for samcam
+
+## Model with the interaction term ####
+data$ia.acl.smc <- interaction(data$age_class, data$samcam)
+anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+# summary(anc.tukey)
+
+# Pairwise comparisons (with interaction term)
+anc.pairwise <- glht(anc.tukey, mcp(ia.acl.smc = "Tukey"))
+anc.pw.ci <- confint(anc.pairwise)
+
+# Confidence intervals including 0
+anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
+data.frame(names(anc.pw.sig))
+#####
+
+
+## Pairwise comparisons (without interaction term) ####
+anc.pairwise <- glht(anc.best, mcp(samcam = "Tukey"))
 anc.pw.ci <- confint(anc.pairwise)
 
 # Confidence intervals including 0

@@ -13,7 +13,7 @@ library(bbmle)
 library(coefplot2)
 library(R2jags)
 
-
+library(vegan)
 library(multcomp)
 library(lattice)
 library(ggplot2)
