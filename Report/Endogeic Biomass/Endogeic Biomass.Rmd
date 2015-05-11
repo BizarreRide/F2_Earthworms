@@ -209,10 +209,11 @@ endo.bm.glob1 <- glmmadmb(endo.bm ~ age_class*samcam + scl.mc + scl.pH*scl.cn + 
 
 # adding small values to Zero 
 ## With soil moisture
-endo.bm.glob2 <- glmmadmb(I(endo.bm+0.0001) ~ age_class*samcam + scl.mc + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gamma")
+endo.bm.glob2 <- glmmadmb(I(endo.bm+0.0001) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gamma")
 
 ## With average Temperature and humidity
 endo.bm.glob3 <- glmmadmb(I(endo.bm+0.0001) ~ age_class*samcam + I(scl.ats1^2) + scl.hum1 + scl.pH*scl.cn + (1|field.ID) + offset(log(area)),data=data,family="gamma")
+
 
 # Normal distribution
 #####################
