@@ -92,3 +92,33 @@ data24 <- aggregate(.~interaction(data$field.ID,data$samcam),data24[,-1], sum)
 data2$endad.bm <- rowSums(data24[,c("ACAad", "ACHad", "AROad", "ENDad","OCY","OLA")])
 
 rm(EndoAdult, data23, EndoAdult_Bm, data24, spe, bm, data21, data22)
+
+#_______________________________________________________________________________
+
+## Adult vs. Juvenile Anecics
+
+# Separate abundance data of endogeic earthworms into adult and juveniles
+# Separation took place a priori with an Excel Pivot-table
+
+AncAdult <- read.delim("Data/F2_EW_AncAdult.txt")
+ 
+
+# Response variables
+data23 <- AncAdult[,c(which(colnames(AncAdult)=="hole"):which(colnames(AncAdult)=="LTRj"))]
+data23 <- aggregate(.~interaction(data$field.ID,data$samcam),data23[,-1], sum)
+
+data2$endad <- rowSums(data23[,c("ALOad", "LTRad")])
+
+# Separate abundance data of Anecic earthworms into adult and juveniles
+# Separation took place a priori with an Excel Pivot-table
+
+AncAdult_Bm <- read.delim("Data/F2_EW_AncAdult_Bm.txt")
+
+
+# Response variables
+data24 <- AncAdult_Bm[,c(which(colnames(AncAdult_Bm)=="hole"):which(colnames(AncAdult_Bm)=="LTRj"))]
+data24 <- aggregate(.~interaction(data$field.ID,data$samcam),data24[,-1], sum)
+
+data2$endad.bm <- rowSums(data24[,c("ALOad", "LTRad")])
+
+rm(AncAdult, data23, AncAdult_Bm, data24)

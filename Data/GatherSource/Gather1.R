@@ -103,6 +103,26 @@ rm(EndoAdult, EndoAdult_Bm)
 #_______________________________________________________________________________
 
 
+# Separate abundance data of endogeic earthworms into adult and juveniles
+# Separation took place a priori with an Excel Pivot-table
+
+AncAdult<- read.delim("Data/F2_EW_AncAdult.txt")
+
+data$ancad <- rowSums(AncAdult[,c("ALOad", "LTRad")])
+
+
+# Separate biomass data of endogeic earthworms into adult and juveniles
+# Separation took place a priori with an Excel Pivot-table
+
+AncAdult_Bm <- read.delim("Data/F2_EW_AncAdult_Bm.txt")
+
+data$endad.bm <- rowSums(AncAdult_Bm[,c("ALOad", "LTRad")])
+
+rm(AncAdult, AncAdult_Bm)
+
+#_______________________________________________________________________________
+
+
 
 ##################
 # Wassergehalte

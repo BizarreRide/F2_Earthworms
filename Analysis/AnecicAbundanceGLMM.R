@@ -73,7 +73,7 @@ load("Analysis/AnecicDredge.RData")
 ##############################################################
 
 
-#####################################
+##############################################################
 # Fit the best model
 # with both glmer() and glmmadmb():
 
@@ -201,9 +201,43 @@ data$ia.acl.smc <- interaction(data$age_class, data$samcam)
 anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 # summary(anc.tukey)
 
+# Create contrast matrix
+      k <- 2 # pairwise comparison
+      n <- 5 # Nr of facot levels to be compared, Interaction factor 1
+      groups <- 3 # Nr of groups to draw comparisons within Interaction factor 2
+      
+      x <- groups*choose(n,k) # row number, i.e. all comparisons that should be drawn
+      
+      cm1 <- matrix(0,x,length(levels(data$ia.acl.smc))+2) # empty contrast matrix with two mor columns for pairwise factor combinations
+      
+      # Fill in pairwise factor combinations, first create interaction factor!
+      for(i in 1:2) {
+        y <- rbind(t(combn(levels(data$ia.acl.smc)[1:5],k)),
+                   t(combn(levels(data$ia.acl.smc)[6:10],k)),
+                   t(combn(levels(data$ia.acl.smc)[11:15],k)))
+        cm1[,i] <- y[,i]
+      }
+      cm1 <- data.frame(cm1, stringsAsFactors=FALSE) # turn into data frame
+      
+      
+      colnames(cm1)[3:17] <- levels(data$ia.acl.smc) # fill in column names
+      
+      # write 1 or -1 if colnames match the names of rows 1 or 2
+      for (i in 3:17) {
+        for (j in 1:30) {
+          if(colnames(cm1)[i]==cm1$X1[j]) {cm1[j,i] = -1}
+          if(colnames(cm1)[i]==cm1$X2[j]) {cm1[j,i] = 1}
+        }
+      }
+
+      rownames(cm1) <- paste(cm1$X1, cm1$X2, sep=" - ") # create rownames
+      cm1= as.matrix(cm1[,-c(1,2)]) # delete columns 1 and 2
+      class(cm1) <- "numeric"
+
 # Pairwise comparisons (with interaction term)
-anc.pairwise <- glht(anc.tukey, mcp(ia.acl.smc = "Tukey"))
+anc.pairwise <- glht(anc.tukey, linfct=mcp(ia.acl.smc = cm1))
 anc.pw.ci <- confint(anc.pairwise)
+summary(anc.pairwise, test=adjusted(type="none"))
 
 # Confidence intervals including 0
 anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
@@ -214,6 +248,7 @@ data.frame(names(anc.pw.sig))
 ## Pairwise comparisons (without interaction term) ####
 anc.pairwise <- glht(anc.best, mcp(age_class = "Tukey"))
 anc.pw.ci <- confint(anc.pairwise)
+summary(anc.pairwise, test=adjusted(type="none"))
 
 # Confidence intervals including 0
 anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
@@ -244,6 +279,8 @@ anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(l
 # Pairwise comparisons (with interaction term)
 anc.pairwise <- glht(anc.tukey, mcp(ia.acl.smc = "Tukey"))
 anc.pw.ci <- confint(anc.pairwise)
+
+anc.contrast <- matrix(30,15,0)
 
 # Confidence intervals including 0
 anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
