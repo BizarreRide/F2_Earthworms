@@ -116,7 +116,7 @@ data$ancad <- rowSums(AncAdult[,c("ALOad", "LTRad")])
 
 AncAdult_Bm <- read.delim("Data/F2_EW_AncAdult_Bm.txt")
 
-data$endad.bm <- rowSums(AncAdult_Bm[,c("ALOad", "LTRad")])
+data$ancad.bm <- rowSums(AncAdult_Bm[,c("ALOad", "LTRad")])
 
 rm(AncAdult, AncAdult_Bm)
 
@@ -184,7 +184,7 @@ mc <- aggregate(gravimetric ~ f.scfield + superID, moisture.outlier,mean)
 
 library(splitstackshape)
 mc <- cSplit(mc, 1, ".")
-colnames(mc)[3:5] <- c("samcam","field","f.aid")
+setnames(mc,3:5,c("samcam","field","f.aid"))
 
 
 # create data for earthworms only
@@ -204,6 +204,6 @@ mc.ew$field <- plyr::revalue(mc.ew$field, c(DO_MaisI = "DO_Mais", RO_MaisI="RO_M
 data$mc <- mc.ew$gravimetric
 
 # clean up:
-rm(mc, mc.ew, moisture, moisture.outlier, grvar, grvar1, scfield.variance, gravimetric.variance)
+rm(mc, mc.ew, moisture, moisture.outlier, grvar, grvar1, gravimetric.variance)
 
 

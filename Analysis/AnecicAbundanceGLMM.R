@@ -330,15 +330,18 @@ anc.pred$samcam2 <- plyr::revalue(anc.td$samcam,c("1" ="autumn 2012",  "2" ="spr
 anc.pred$ats1 <- anc.pred$scl.ats1 * attr(anc.pred$scl.ats1, 'scaled:scale') + attr(anc.pred$scl.ats1, 'scaled:center')
 
 # plot predictions with error bars // confidence intervals???
-ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
-  geom_bar(stat="identity",position = position_dodge(1), col="454545", fill="grey") +
-  geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
-  facet_grid(.~samcam2) +
-  geom_hline(xintercept = 1) +
-  ylab("Abundance Ind./m²") +
-  xlab("Age Class") +
-  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
-  mytheme
+predfig1 <- ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+              geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
+              geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
+              facet_grid(.~samcam2) +
+              geom_hline(xintercept = 1, size=0.15) +
+              ylab("Anecic Abundance Ind./m²") +
+              xlab("Age Class") +
+              scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+              mytheme +
+              theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
+
+#ggsave(predfig1,filename="Analysis/Figures/Figure3.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 ##############################################################
 
 
