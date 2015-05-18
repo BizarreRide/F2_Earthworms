@@ -78,7 +78,7 @@ load("Analysis/AnecicDredge.RData")
 # with both glmer() and glmmadmb():
 
 #anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-anc.best <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) +  (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+anc.best <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 
 # **The best model includes an Interaction term!!!**
 
@@ -104,7 +104,7 @@ coefplot2(anc.best)
 
 E1 <- resid(anc.best, type="pearson")
 F1 <- fitted(anc.best, type="response")
-P1 <- resid(anc.best, type="response")
+P1 <- predict(anc.best, type="response")
 
 
 ## Check Model assumptions ####
@@ -135,7 +135,7 @@ par(lo)
 
 
 # Dataset with all variables IN the model
-env1 <- cbind(E1, F1, data[,c("anc", "age_class", "samcam", "ats1")]) # should "ats1" be squared?
+env1 <- cbind(E1, F1, data[,c("anc", "age_class", "samcam", "ats1", "prec1")]) # should "ats1" be squared?
 # covariates NOT in the model
 env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "hum1","dgO")])
 
@@ -178,16 +178,17 @@ r.squaredGLMM(anc.best)
 ## Some more plots ####
 # Plots of Predicted Values
 par(mfrow=c(2,2))
-plot(data$age_class,predict(anc.best, type="response"))
-plot(data$samcam,predict(anc.best, type="response"))
-plot(data$ats1^2,predict(anc.best, type="response"))
-plot(data$hum1^2,predict(anc.best, type="response"))
+plot(data$age_class,P1)
+plot(data$samcam,P1)
+plot(data$ats1^2,P1)
+plot(data$prec1^2,P1)
 
 # Plots of fitted Values
 par(mfrow=c(2,2))
 plot(data$age_class,F1)
 plot(data$samcam,F1)
 plot(data$ats1^2,F1)
+plot(data$prec1,F1)
 
 par(lo)
 ##############################################################
@@ -198,7 +199,7 @@ par(lo)
 
 ## Model with the interaction term ####
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
-anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 # summary(anc.tukey)
 
 # Create contrast matrix
@@ -237,7 +238,7 @@ anc.tukey <- glmmadmb(anc ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(l
 # Pairwise comparisons (with interaction term)
 anc.pairwise <- glht(anc.tukey, linfct=mcp(ia.acl.smc = cm1))
 anc.pw.ci <- confint(anc.pairwise)
-summary(anc.pairwise, test=adjusted(type="none"))
+summary(anc.pairwise, test=adjusted(type="fdr"))
 
 # Confidence intervals including 0
 anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
@@ -318,6 +319,7 @@ plot(anc.pw.ci) # only maize is significantly different from all SIlphie fields.
 anc.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
                      scl.ats1 = mean(data$scl.ats1),
+                     scl.prec1 = mean(data$scl.prec1),
                      area = 1)
 
 # calculate confidence intervals for predictions from test dataset
@@ -327,7 +329,7 @@ anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confid
 anc.pred$samcam2 <- plyr::revalue(anc.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
 
 # Reverse scaling of covariate
-anc.pred$ats1 <- anc.pred$scl.ats1 * attr(anc.pred$scl.ats1, 'scaled:scale') + attr(anc.pred$scl.ats1, 'scaled:center')
+#anc.pred$ats1 <- anc.pred$scl.ats1 * attr(anc.pred$scl.ats1, 'scaled:scale') + attr(anc.pred$scl.ats1, 'scaled:center')
 
 # plot predictions with error bars // confidence intervals???
 predfig1 <- ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
@@ -340,6 +342,7 @@ predfig1 <- ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), y
               scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
               mytheme +
               theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
+predfig1
 
 #ggsave(predfig1,filename="Analysis/Figures/Figure3.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 ##############################################################

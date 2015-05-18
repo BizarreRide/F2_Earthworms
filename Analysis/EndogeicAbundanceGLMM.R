@@ -8,6 +8,7 @@
 
 ##############################################################
 # Standardize Covariates
+source("Data/GatherSource/F2_EW_MakeLikeFile.R")
 source("Data/GatherSource/CovariateStandardization.R")
 ##############################################################
 
@@ -36,8 +37,8 @@ boxplot(endad~field.ID+samcam, data, las=2, col="grey", main="Variability within
 # since some covariates can't be used in the same model due to colinearity
 
 # Model Formulation
-endad.glob1 <- glmmadmb(endad ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.pH*scl.cn  + scl.hum1 + I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
-endad.glob2 <- glmmadmb(endad ~ age_class*samcam + scl.ats1 + I(scl.ats1^2) + scl.pH*scl.cn  +I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+endad.glob1 <- glmmadmb(endad ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.pH*scl.cn  + scl.hum1 + I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
+endad.glob2 <- glmmadmb(endad ~ age_class*samcam + scl.ats1 + I(scl.ats1^2) + scl.pH*scl.cn  + scl.hum1 + I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
@@ -68,7 +69,7 @@ importance(endad.avgmod.d4)
 endad.avgmod.95p <- model.avg(endad.dredge2, cumsum(weight) <= .95)
 # AICc ends at 743.64
 
-save(endad.dredge1, endad.dredge2, file="Analysis/AnecicDredge.RData")
+save(endad.dredge1, endad.dredge2, endad.dredge3, endad.dredge4, file="Analysis/EndogeicDredge.RData")
 rm(endad.dredge1)
 load("Analysis/AnecicDredge.RData")
 #####
@@ -80,7 +81,7 @@ load("Analysis/AnecicDredge.RData")
 # with both glmer() and glmmadmb():
 
 #endad.best <- glmer(endad ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-endad.best <- glmmadmb(endad ~ age_class*samcam + I(scl.ats1^2) +  (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+endad.best <- glmmadmb(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH +  (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 
 # **The best model includes an Interaction term!!!**
 
@@ -91,6 +92,7 @@ summary(endad.best)
 
 # anova
 summary(aov(endad.best))
+
 ##############################################################
 
 
@@ -106,8 +108,9 @@ coefplot2(endad.best)
 
 E1 <- resid(endad.best, type="pearson")
 F1 <- fitted(endad.best, type="response")
-P1 <- resid(endad.best, type="response")
+P1 <- predict(endad.best, type="response")
 
+P1
 
 ## Check Model assumptions ####
 
@@ -119,7 +122,7 @@ abline(h = 0, v=0, lty=2)
 data$field[[69]]
 
 # plot fitted vs. predicted
-scatter.smooth(F1, P1, cex.lab = 1.5, ylab=" Residuals", xlab="Predicted values")
+scatter.smooth(F1, P1, cex.lab = 1.5, ylab="Predicted", xlab="Fitted values")
 abline(h = 0, v=0, lty=2)
 
 # Histogram of Residuals
@@ -178,18 +181,21 @@ r.squaredGLMM(endad.best)
 #####
 
 ## Some more plots ####
-# Plots of Predicted Values
+# Plots of Predicted Values (- random term)
 par(mfrow=c(2,2))
-plot(data$age_class,predict(endad.best, type="response"))
-plot(data$samcam,predict(endad.best, type="response"))
-plot(data$ats1^2,predict(endad.best, type="response"))
-plot(data$hum1^2,predict(endad.best, type="response"))
+plot(data$age_class,P1)
+plot(data$samcam,P1)
+plot(data$mc,P1)
+plot(data$pH,P1)
+plot(data$hum1,P1)
 
-# Plots of fitted Values
+# Plots of fitted Values (+ random term)
 par(mfrow=c(2,2))
 plot(data$age_class,F1)
 plot(data$samcam,F1)
-plot(data$ats1^2,F1)
+plot(data$mc,F1)
+plot(data$pH,F1)
+plot(data$hum1,F1)
 
 par(lo)
 ##############################################################
@@ -200,7 +206,7 @@ par(lo)
 
 ## Model with the interaction term ####
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
-endad.tukey <- glmmadmb(endad ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+endad.tukey <- glmmadmb(endad ~ ia.acl.smc + scl.prec1 + scl.mc*scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 # summary(endad.tukey)
 
 # Create contrast matrix
@@ -239,7 +245,7 @@ class(cm1) <- "numeric"
 # Pairwise comparisons (with interaction term)
 endad.pairwise <- glht(endad.tukey, linfct=mcp(ia.acl.smc = cm1))
 endad.pw.ci <- confint(endad.pairwise)
-summary(endad.pairwise, test=adjusted(type="none"))
+summary(endad.pairwise, test=adjusted(type="fdr"))
 
 # Confidence intervals including 0
 endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
@@ -275,7 +281,7 @@ plot(endad.pw.ci) # only maize is significantly different from all SIlphie field
 
 ## Model with the interaction term ####
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
-endad.tukey <- glmmadmb(endad ~ ia.acl.smc + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+endad.tukey <- glmmadmb(endad ~ ia.acl.smc + scl.prec1 + scl.mc*scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 # summary(endad.tukey)
 
 # Pairwise comparisons (with interaction term)
@@ -319,7 +325,9 @@ plot(endad.pw.ci) # only maize is significantly different from all SIlphie field
 # to predict for age_class only, take the mean of all continous covariates
 endad.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
-                     scl.ats1 = mean(data$scl.ats1),
+                     scl.prec1 = mean(data$scl.prec1),
+                     scl.mc = min(data$scl.mc),
+                     scl.pH = max(data$scl.pH),
                      area = 1)
 
 # calculate confidence intervals for predictions from test dataset
@@ -329,7 +337,7 @@ endad.pred <- cbind(endad.td, predict(endad.best, newdata = endad.td, interval =
 endad.pred$samcam2 <- plyr::revalue(endad.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
 
 # Reverse scaling of covariate
-endad.pred$ats1 <- endad.pred$scl.ats1 * attr(endad.pred$scl.ats1, 'scaled:scale') + attr(endad.pred$scl.ats1, 'scaled:center')
+#endad.pred$ats1 <- endad.pred$scl.ats1 * attr(endad.pred$scl.ats1, 'scaled:scale') + attr(endad.pred$scl.ats1, 'scaled:center')
 
 # plot predictions with error bars // confidence intervals???
 predfig1 <- ggplot(endad.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
@@ -342,6 +350,7 @@ predfig1 <- ggplot(endad.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr),
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
+predfig1
 
 #ggsave(predfig1,filename="Analysis/Figures/Figure3.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 ##############################################################
@@ -374,12 +383,14 @@ endad.OUT2
 ##### Prediction plots for average temperature!
 endad.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
-                     scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1), by=0.2),
+                     scl.prec1 = mean(data$scl.prec1),#seq(min(data$scl.prec1),max(data$scl.prec1), by=0.2),
+                     scl.mc = mean(data$scl.mc),#seq(min(data$scl.mc),max(data$scl.mc), by=0.2),
+                     scl.pH = seq(min(data$scl.pH),max(data$scl.pH), by=0.2),
                      area = 1)
 
 endad.pred <- cbind(endad.td, predict(endad.best, newdata = endad.td, interval = "confidence")) 
 
-ggplot(endad.pred, aes(x = scl.ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr),col=samcam)) + 
+ggplot(endad.pred, aes(x = scl.pH, y = exp(fit), ymin = exp(lwr), ymax = exp(upr),col=samcam)) + 
   geom_errorbar(position = position_dodge(1)) + 
   geom_point(position = position_dodge(1)) +
   facet_grid(.~age_class) +
