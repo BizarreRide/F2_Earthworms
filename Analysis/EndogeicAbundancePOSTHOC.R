@@ -1,6 +1,6 @@
 #################
 # F2_Eearthworms
-# Post-Hoc Multicomparisons for Anecic Abundance
+# Post-Hoc Multicomparisons for Endogeic Abundance
 # Quentin Schorpp
 # 18.05.2015
 #################
@@ -13,32 +13,32 @@
 
 # Model with the interaction term
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
-anc.tukey <- glmer(anc ~ ia.acl.smc + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family="poisson", control=glmerControl(optimizer="bobyqa"))
-# summary(anc.tukey)
+endad.tukey <- glmer(endad ~ ia.acl.smc + scl.prec1 + scl.mc*scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="poisson", control=glmerControl(optimizer="bobyqa"))
+# summary(endad.tukey)
 
 # Create contrast matrix
 source("Analysis/F2_EW_ContrastMatrix.R")
 
 # Pairwise comparisons (with interaction term)
-anc.pairwise <- glht(anc.tukey, linfct=mcp(ia.acl.smc = cm1))
-anc.pw.ci <- confint(anc.pairwise)
-summary(anc.pairwise, test=adjusted(type="fdr"))
+endad.pairwise <- glht(endad.tukey, linfct=mcp(ia.acl.smc = cm1))
+endad.pw.ci <- confint(endad.pairwise)
+summary(endad.pairwise, test=adjusted(type="fdr"))
 
 # Confidence intervals including 0
-anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
-data.frame(names(anc.pw.sig))
+endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
+data.frame(names(endad.pw.sig))
 
 # Plot Errorbars
-phfig1 <- ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
-            geom_errorbarh() + 
-            geom_point() + 
-            geom_vline(xintercept = 1) +
-            mytheme
+phfig1 <- ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
 phfig1
 
 # plot confidence intervals
 par(mar=c(2,15,2,2))
-  plot(anc.pw.ci) 
+plot(endad.pw.ci) 
 ##############################################################
 
 
@@ -48,17 +48,17 @@ par(mar=c(2,15,2,2))
 # main effect ####
 
 # Pairwise comparisons (without interaction term)
-anc.pairwise <- glht(anc.best, mcp(age_class = "Tukey"))
-anc.pw.ci <- confint(anc.pairwise)
-summary(anc.pairwise, test=adjusted(type="none"))
+endad.pairwise <- glht(endad.best, mcp(age_class = "Tukey"))
+endad.pw.ci <- confint(endad.pairwise)
+summary(endad.pairwise, test=adjusted(type="none"))
 
 # Confidence intervals including 0
-anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
-data.frame(names(anc.pw.sig))
+endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
+data.frame(names(endad.pw.sig))
 
 
 # Plot Errorbars
-ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
   geom_errorbarh() + 
   geom_point() + 
   geom_vline(xintercept = 1) +
@@ -66,7 +66,7 @@ ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(up
 
 # plot confidence intervals
 par(mar=c(2,15,2,2))
-plot(anc.pw.ci) 
+plot(endad.pw.ci) 
 ##############################################################
 
 
@@ -76,16 +76,16 @@ plot(anc.pw.ci)
 # main effect ####
 
 # Pairwise comparisons (without interaction term)
-anc.pairwise <- glht(anc.best, mcp(samcam = "Tukey"))
-anc.pw.ci <- confint(anc.pairwise)
+endad.pairwise <- glht(endad.best, mcp(samcam = "Tukey"))
+endad.pw.ci <- confint(endad.pairwise)
 
 # Confidence intervals including 0
-anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
-data.frame(names(anc.pw.sig))
+endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
+data.frame(names(endad.pw.sig))
 
 
 # Plot Errorbars
-ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
   geom_errorbarh() + 
   geom_point() + 
   geom_vline(xintercept = 1) +
@@ -93,5 +93,5 @@ ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(up
 
 # plot confidence intervals
 par(mar=c(2,15,2,2))
-plot(anc.pw.ci) 
+plot(endad.pw.ci) 
 ##############################################################

@@ -12,11 +12,11 @@ source("Data/GatherSource/F2_EW_MakeLikeFile.R")
 source("Data/GatherSource/CovariateStandardization.R")
 ##############################################################
 
-# I model only adult endogeics, since this decreases the varaince and buffers very large abundance values.
+#!!!! I model only adult endogeics, since this decreases the varaince and buffers very large abundance values!!!!!!!!
 
 
 ##############################################################
-# Assess variability in random effects
+# Assess variability in random effects ####
 
 # Variability within sites
 boxplot(endad~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
@@ -28,17 +28,19 @@ boxplot(endad~samcam, data,col="grey", main="Variability within sampling campaig
 boxplot(endad~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
 ##############################################################
 
-## GLMM using glmmADMB ####
+
+
+## GLMM using glmer & glmmADMB ####
 
 ##############################################################
-# Global model Formulation
+# Global model Formulation ####
 
 # I Formulate two different candidate models, 
 # since some covariates can't be used in the same model due to colinearity
 
 # Model Formulation
-endad.glob1 <- glmmadmb(endad ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.pH*scl.cn  + scl.hum1 + I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
-endad.glob2 <- glmmadmb(endad ~ age_class*samcam + scl.ats1 + I(scl.ats1^2) + scl.pH*scl.cn  + scl.hum1 + I(scl.hum1^2) + (1|field.ID) + offset(log(area)),data=data,family="nbinom")
+endad.glob1 <- glmer(endad ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc*scl.pH + scl.pH*scl.cn + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+endad.glob2 <- glmer(endad ~ age_class*samcam + scl.ats1 + I(scl.ats1^2)             + scl.pH*scl.cn + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
@@ -53,13 +55,16 @@ Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 
 ## Multimodel averaging ####
+
+load("Analysis/F2_EW_glmerDredge.RData")
+
 #endad.dredge1 <- dredge(endad.glob1)
 head(endad.dredge1,10)
 endad.avgmod1.d4 <- model.avg(endad.dredge1, subset = delta < 4)
 summary(endad.avgmod1.d4)
 importance(endad.avgmod.d4) 
 endad.avgmod.95p <- model.avg(endad.dredge1, cumsum(weight) <= .95)
-# AICc begins at 751.23
+# AICc range 832 - 836
 
 #endad.dredge2 <- dredge(endad.glob2)
 head(endad.dredge2,10)
@@ -67,33 +72,31 @@ endad.avgmod2.d4 <- model.avg(endad.dredge2, subset = delta < 4)
 summary(endad.avgmod2.d4)
 importance(endad.avgmod.d4) 
 endad.avgmod.95p <- model.avg(endad.dredge2, cumsum(weight) <= .95)
-# AICc ends at 743.64
+#AICc range 845 - 849
 
-save(endad.dredge1, endad.dredge2, endad.dredge3, endad.dredge4, file="Analysis/EndogeicDredge.RData")
-rm(endad.dredge1)
-load("Analysis/AnecicDredge.RData")
-#####
+write.csv(data.frame(endad.avgmod1.d4$importance), "Analysis/OutputTables/EndadImportance.csv")
+write.csv(data.frame(endad.avgmod1.d4$coef.shrinkage), "Analysis/OutputTables/EndadShrinkage.csv")
 ##############################################################
 
 
+
 ##############################################################
-# Fit the best model
+# Fit the best model ####
 # with both glmer() and glmmadmb():
 
-#endad.best <- glmer(endad ~ age_class*samcam + I(scl.ats1^2) + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-endad.best <- glmmadmb(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH +  (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+# endad.best2 <- glmmadmb(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+endad.best <- glmer(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 
 # **The best model includes an Interaction term!!!**
 
-
-# Summary output 
+# Summary output ####
 # summary
 summary(endad.best)
 
 # anova
 summary(aov(endad.best))
-
 ##############################################################
+
 
 
 ##############################################################
@@ -103,16 +106,12 @@ summary(aov(endad.best))
 confint(endad.best)
 coefplot2(endad.best)
 
-
-## Residual plots ####
+## Check Model Assumptions ####
 
 E1 <- resid(endad.best, type="pearson")
 F1 <- fitted(endad.best, type="response")
 P1 <- predict(endad.best, type="response")
 
-P1
-
-## Check Model assumptions ####
 
 par(mfrow=c(2,2),
     mar=c(4,4.5,1,2))
@@ -136,16 +135,16 @@ qqplot(E1)
 # Cooks Distances
 
 par(lo)
-#####
 
-
+## Datasets ####
 # Dataset with all variables IN the model
 env1 <- cbind(E1, F1, data[,c("endad", "age_class", "samcam", "ats1")]) # should "ats1" be squared?
 # covariates NOT in the model
 env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "hum1","dgO")])
 
-## plot residual versus all covariates in the model ####
+## plot residuals vs. all covariates ####
 
+# IN the model
 par(mfrow=c(2,3),
     mar=c(3.8,4,1,3))
 for (i in 1:length(env1)) {
@@ -154,7 +153,7 @@ for (i in 1:length(env1)) {
 }
 par(mfrow=c(1,1))
 
-# plot residual versus all covariates NOT in the model
+# NOT in the model
 par(mfrow=c(3,3),
     mar=c(3.8,4,1,3))
 for (i in 1:length(env0)) {
@@ -162,7 +161,6 @@ for (i in 1:length(env0)) {
   abline(h=0, lty=2, col="red")
 }
 par(lo)
-##### 
 
 ## Overdispersion ####
 N <- nrow(data)
@@ -172,13 +170,10 @@ Dispersion
 # glmer has less dispersion
 
 overdisp_fun(endad.best)
-#####
 
 ## Explained variation ####
 
 r.squaredGLMM(endad.best)
-
-#####
 
 ## Some more plots ####
 # Plots of Predicted Values (- random term)
@@ -201,146 +196,45 @@ par(lo)
 ##############################################################
 
 
-##############################################################
-#Post-Hoc Multicomparisons for age class
-
-## Model with the interaction term ####
-data$ia.acl.smc <- interaction(data$age_class, data$samcam)
-endad.tukey <- glmmadmb(endad ~ ia.acl.smc + scl.prec1 + scl.mc*scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-# summary(endad.tukey)
-
-# Create contrast matrix
-k <- 2 # pairwise comparison
-n <- 5 # Nr of facot levels to be compared, Interaction factor 1
-groups <- 3 # Nr of groups to draw comparisons within Interaction factor 2
-
-x <- groups*choose(n,k) # row number, i.e. all comparisons that should be drawn
-
-cm1 <- matrix(0,x,length(levels(data$ia.acl.smc))+2) # empty contrast matrix with two mor columns for pairwise factor combinations
-
-# Fill in pairwise factor combinations, first create interaction factor!
-for(i in 1:2) {
-  y <- rbind(t(combn(levels(data$ia.acl.smc)[1:5],k)),
-             t(combn(levels(data$ia.acl.smc)[6:10],k)),
-             t(combn(levels(data$ia.acl.smc)[11:15],k)))
-  cm1[,i] <- y[,i]
-}
-cm1 <- data.frame(cm1, stringsAsFactors=FALSE) # turn into data frame
-
-
-colnames(cm1)[3:17] <- levels(data$ia.acl.smc) # fill in column names
-
-# write 1 or -1 if colnames match the names of rows 1 or 2
-for (i in 3:17) {
-  for (j in 1:30) {
-    if(colnames(cm1)[i]==cm1$X1[j]) {cm1[j,i] = -1}
-    if(colnames(cm1)[i]==cm1$X2[j]) {cm1[j,i] = 1}
-  }
-}
-
-rownames(cm1) <- paste(cm1$X1, cm1$X2, sep=" - ") # create rownames
-cm1= as.matrix(cm1[,-c(1,2)]) # delete columns 1 and 2
-class(cm1) <- "numeric"
-
-# Pairwise comparisons (with interaction term)
-endad.pairwise <- glht(endad.tukey, linfct=mcp(ia.acl.smc = cm1))
-endad.pw.ci <- confint(endad.pairwise)
-summary(endad.pairwise, test=adjusted(type="fdr"))
-
-# Confidence intervals including 0
-endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
-data.frame(names(endad.pw.sig))
-#####
-
-
-## Pairwise comparisons (without interaction term) ####
-endad.pairwise <- glht(endad.best, mcp(age_class = "Tukey"))
-endad.pw.ci <- confint(endad.pairwise)
-summary(endad.pairwise, test=adjusted(type="none"))
-
-# Confidence intervals including 0
-endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
-data.frame(names(endad.pw.sig))
-
-
-# Plot Errorbars
-ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
-  geom_errorbarh() + 
-  geom_point() + 
-  geom_vline(xintercept = 1) +
-  mytheme
-
-# plot confidence intervals
-par(mar=c(2,15,2,2))
-plot(endad.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
-##############################################################
-
 
 ##############################################################
-#Post-Hoc Multicomparisons for samcam
-
-## Model with the interaction term ####
-data$ia.acl.smc <- interaction(data$age_class, data$samcam)
-endad.tukey <- glmmadmb(endad ~ ia.acl.smc + scl.prec1 + scl.mc*scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-# summary(endad.tukey)
-
-# Pairwise comparisons (with interaction term)
-endad.pairwise <- glht(endad.tukey, mcp(ia.acl.smc = "Tukey"))
-endad.pw.ci <- confint(endad.pairwise)
-
-endad.contrast <- matrix(30,15,0)
-
-# Confidence intervals including 0
-endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
-data.frame(names(endad.pw.sig))
-#####
-
-
-## Pairwise comparisons (without interaction term) ####
-endad.pairwise <- glht(endad.best, mcp(samcam = "Tukey"))
-endad.pw.ci <- confint(endad.pairwise)
-
-# Confidence intervals including 0
-endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
-data.frame(names(endad.pw.sig))
-
-
-# Plot Errorbars
-ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
-  geom_errorbarh() + 
-  geom_point() + 
-  geom_vline(xintercept = 1) +
-  mytheme
-
-# plot confidence intervals
-par(mar=c(2,15,2,2))
-plot(endad.pw.ci) # only maize is significantly different from all SIlphie fields. Within SIlphie there are no differences
-##############################################################
-
-
-##############################################################
-# Extract Predictions and plot predictions with error bars
+## Predictionplots for Age Class x SamCam ####
 
 # create test data set with all covariates IN the model
 # to predict for age_class only, take the mean of all continous covariates
 endad.td = expand.grid(age_class=unique(data$age_class),
-                     samcam = unique(data$samcam),               
-                     scl.prec1 = mean(data$scl.prec1),
-                     scl.mc = min(data$scl.mc),
-                     scl.pH = max(data$scl.pH),
-                     area = 1)
+                       samcam = unique(data$samcam),               
+                       scl.prec1 = mean(data$scl.prec1),
+                       scl.mc = mean(data$scl.mc),
+                       scl.pH = mean(data$scl.pH),
+                       area = 1)
 
-# calculate confidence intervals for predictions from test dataset
-endad.pred <- cbind(endad.td, predict(endad.best, newdata = endad.td, interval = "confidence")) 
+
+## calculate confidence intervals for predictions from test dataset
+
+# In case of glmmadmb:
+#endad.pred <- cbind(endad.td, predict(endad.best2, newdata = endad.td, interval = "confidence")) 
+
+# In case of glmer:
+      X <- model.matrix(~ ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH, data = endad.td)
+      endad.td$fit <- X %*% fixef(endad.best)
+      endad.td$SE <- sqrt(  diag(X %*%vcov(endad.best) %*% t(X))  )
+      endad.td$upr=endad.td$fit+1.96*endad.td$SE
+      endad.td$lwr=endad.td$fit-1.96*endad.td$SE
+      endad.pred <- endad.td
+
 
 # Rename samcam for facetting
 endad.pred$samcam2 <- plyr::revalue(endad.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
+endad.pred$age_class <- plyr::revalue(endad.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
 
 # Reverse scaling of covariate
-#endad.pred$ats1 <- endad.pred$scl.ats1 * attr(endad.pred$scl.ats1, 'scaled:scale') + attr(endad.pred$scl.ats1, 'scaled:center')
+endad.pred$prec1 <- endad.pred$scl.prec1* sd(data$prec1) + mean(data$prec1)
+endad.pred$mc <- endad.pred$scl.mc* sd(data$mc) + mean(data$mc)
+endad.pred$pH <- endad.pred$scl.pH* sd(data$pH) + mean(data$pH)
 
 # plot predictions with error bars // confidence intervals???
-predfig1 <- ggplot(endad.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+predfig.endad1 <- ggplot(endad.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
   geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
   geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
   facet_grid(.~samcam2) +
@@ -350,14 +244,59 @@ predfig1 <- ggplot(endad.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr),
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
-predfig1
+predfig.endad1
+#ggsave(predfig.endad1,filename="Analysis/Figures/Figure4_EndadPredGlmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 
-#ggsave(predfig1,filename="Analysis/Figures/Figure3.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+## Prediction plots for average temperature! ####
+endad.td = expand.grid(age_class=unique(data$age_class),
+                       samcam = unique(data$samcam),               
+                       scl.prec1 = mean(data$scl.prec1),#seq(min(data$scl.prec1),max(data$scl.prec1), by=0.2),
+                       scl.mc = round(seq(min(data$scl.mc),max(data$scl.mc), length.out=5),2),
+                       scl.pH = seq(min(data$scl.pH),max(data$scl.pH), by=0.2),
+                       area = 1)
+
+## calculate confidence intervals for predictions from test dataset
+
+# In case of glmmadmb:
+      #endad.pred <- cbind(endad.td, predict(endad.best2, newdata = endad.td, interval = "confidence")) 
+
+# In case of glmer:
+      X <- model.matrix(~ ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH, data = endad.td)
+      endad.td$fit <- X %*% fixef(endad.best)
+      endad.td$SE <- sqrt(  diag(X %*%vcov(endad.best) %*% t(X))  )
+      endad.td$upr=endad.td$fit+1.96*endad.td$SE
+      endad.td$lwr=endad.td$fit-1.96*endad.td$SE
+      endad.pred <- endad.td
+
+
+# Rename samcam for facetting
+endad.pred$samcam2 <- plyr::revalue(endad.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
+endad.pred$age_class <- plyr::revalue(endad.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
+
+# Reverse scaling of covariate
+endad.pred$prec1 <- endad.pred$scl.prec1* sd(data$prec1) + mean(data$prec1)
+endad.pred$mc <- round(endad.pred$scl.mc* sd(data$mc) + mean(data$mc),2)
+endad.pred$pH <- endad.pred$scl.pH* sd(data$pH) + mean(data$pH)
+
+
+predfig.endad2 <- ggplot(endad.pred, aes(x = pH, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam2)) + 
+  geom_point() +
+  #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
+  geom_errorbar(position = position_dodge(1),width=0.15, size=0.15) + 
+  facet_grid(mc~age_class) +
+  geom_hline(xintercept = 1, size=0.15) +
+  ylab("Endogeic Abundance Ind./m²") +
+  xlab("pH") +
+  mytheme +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
+predfig.endad2
+#ggsave(predfig.endad2,filename="Analysis/Figures/Figure4_EndadPredGlmerPHxMc.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 ##############################################################
 
 
+
 ##############################################################
-Coefficients and Statistics
+# Coefficients and Statistics ####
 # Claculate a whole lot of coefficients and statistics
 endad.pred <- within(endad.pred, {
   AIC <- AIC(endad.best)
@@ -379,19 +318,95 @@ endad.OUT2
 
 #write.table(endad.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
 #write.table(endad.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+##############################################################
 
-##### Prediction plots for average temperature!
-endad.td = expand.grid(age_class=unique(data$age_class),
-                     samcam = unique(data$samcam),               
-                     scl.prec1 = mean(data$scl.prec1),#seq(min(data$scl.prec1),max(data$scl.prec1), by=0.2),
-                     scl.mc = mean(data$scl.mc),#seq(min(data$scl.mc),max(data$scl.mc), by=0.2),
-                     scl.pH = seq(min(data$scl.pH),max(data$scl.pH), by=0.2),
-                     area = 1)
 
-endad.pred <- cbind(endad.td, predict(endad.best, newdata = endad.td, interval = "confidence")) 
 
-ggplot(endad.pred, aes(x = scl.pH, y = exp(fit), ymin = exp(lwr), ymax = exp(upr),col=samcam)) + 
-  geom_errorbar(position = position_dodge(1)) + 
-  geom_point(position = position_dodge(1)) +
-  facet_grid(.~age_class) +
+##############################################################
+# Post-Hoc Multicomparisons for age class x samcam, 
+# interaction effect - reduced contrast matrix ####
+
+# Model with the interaction term
+data$ia.acl.smc <- interaction(data$age_class, data$samcam)
+endad.tukey <- glmer(endad ~ ia.acl.smc + scl.prec1 + scl.mc*scl.pH + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+# summary(endad.tukey)
+
+# Create contrast matrix
+source("Analysis/F2_EW_ContrastMatrix.R")
+
+# Pairwise comparisons (with interaction term)
+endad.pairwise <- glht(endad.tukey, linfct=mcp(ia.acl.smc = cm1))
+endad.pw.ci <- confint(endad.pairwise)
+summary(endad.pairwise, test=adjusted(type="fdr"))
+
+# Confidence intervals including 0
+endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
+data.frame(names(endad.pw.sig))
+
+# Plot Errorbars
+phfig1 <- ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
   mytheme
+phfig1
+
+# plot confidence intervals
+par(mar=c(2,15,2,2))
+plot(endad.pw.ci) 
+##############################################################
+
+
+
+##############################################################
+# Post-Hoc Multicomparisons for age class, 
+# main effect ####
+
+# Pairwise comparisons (without interaction term)
+endad.pairwise <- glht(endad.best, mcp(age_class = "Tukey"))
+endad.pw.ci <- confint(endad.pairwise)
+summary(endad.pairwise, test=adjusted(type="none"))
+
+# Confidence intervals including 0
+endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
+data.frame(names(endad.pw.sig))
+
+
+# Plot Errorbars
+ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
+
+# plot confidence intervals
+par(mar=c(2,15,2,2))
+plot(endad.pw.ci) 
+##############################################################
+
+
+
+##############################################################
+# Post-Hoc Multicomparisons for samcam, 
+# main effect ####
+
+# Pairwise comparisons (without interaction term)
+endad.pairwise <- glht(endad.best, mcp(samcam = "Tukey"))
+endad.pw.ci <- confint(endad.pairwise)
+
+# Confidence intervals including 0
+endad.pw.sig <- which(endad.pw.ci$confint[,2]>0)
+data.frame(names(endad.pw.sig))
+
+
+# Plot Errorbars
+ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+  geom_errorbarh() + 
+  geom_point() + 
+  geom_vline(xintercept = 1) +
+  mytheme
+
+# plot confidence intervals
+par(mar=c(2,15,2,2))
+plot(endad.pw.ci) 
+##############################################################

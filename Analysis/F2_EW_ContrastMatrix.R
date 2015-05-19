@@ -47,3 +47,6 @@ rownames(cm1) <- paste(cm1$X1, cm1$X2, sep=" - ") # create rownames
 cm1= cm1[,-c(1,2)] # delete ID-columns 1 and 2
 cm1 <- as.matrix(cm1)
 class(cm1) <- "numeric"
+
+rm(k,n,groups,i,j,x,y,ID)
+

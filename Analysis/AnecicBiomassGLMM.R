@@ -1,6 +1,6 @@
 #################
 # F2_Eearthworms
-# GLMM for Anecic Abundance
+# GLMM for Anecic Biomass
 # Quentin Schorpp
 # 07.05.2015
 #################
@@ -18,13 +18,13 @@ source("Data/GatherSource/CovariateStandardization.R")
 # Assess variability in random effects ####
 
 # Variability within sites
-boxplot(anc~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+boxplot(anc.bm ~ field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm Biomass")
 
 # variability within sampling campaigns
-boxplot(anc~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+boxplot(anc.bm ~ samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm Biomass")
 
 # variability within sites and sampling campaigns
-boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+boxplot(anc.bm ~ field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm biomass")
 ##############################################################
 
 
@@ -39,18 +39,18 @@ boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within s
 # since some covariates can't be used in the same model due to colinearity
 
 # Model Formulation
-anc.glob1 <- glmer(anc ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
-anc.glob2 <- glmer(anc ~ age_class*samcam + scl.ats1 + I(scl.ats1^2)             + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+anc.bm.glob1 <- glmer(I(anc.bm+0.0001) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+anc.bm.glob2 <- glmer(I(anc.bm+0.0001) ~ age_class*samcam + scl.ats1 + I(scl.ats1^2)             + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
-summary(anc.glob1)
-summary(anc.glob2)
+summary(anc.bm.glob1)
+summary(anc.bm.glob2)
 
 # Overdispersion
-E1 <- resid(anc.glob2, type="pearson")
+E1 <- resid(anc.bm.glob2, type="pearson")
 N <- nrow(data)
-p <- length(coef(anc.glob2)) #  "+1"  would be used negative in neg binomial distribution for determining the number of parameters (p) due to the "k" 
+p <- length(coef(anc.bm.glob2)) #  "+1"  would be used negative in neg binomial distribution for determining the number of parameters (p) due to the "k" 
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 
@@ -58,22 +58,22 @@ Dispersion
 
 load("Analysis/F2_EW_glmerDredge.RData")
 
-#anc.dredge1 <- dredge(anc.glob1)
-head(anc.dredge1,10)
-anc.avgmod1.d4 <- model.avg(anc.dredge1, subset = delta < 4)
-summary(anc.avgmod1.d4)
-data.frame(importance(anc.avgmod1.d4))
+#anc.bm.dredge1 <- dredge(anc.bm.glob1)
+head(anc.bm.dredge1,10)
+anc.bm.avgmod1.d4 <- model.avg(anc.bm.dredge1, subset = delta < 4)
+summary(anc.bm.avgmod1.d4)
+data.frame(importance(anc.bm.avgmod1.d4))
 # AICc range 741-745
 
-#anc.dredge2 <- dredge(anc.glob2)
-head(anc.dredge2,10)
-anc.avgmod2.d4 <- model.avg(anc.dredge2, subset = delta < 4)
-summary(anc.avgmod2.d4)
-importance(anc.avgmod2.d4) 
+#anc.bm.dredge2 <- dredge(anc.bm.glob2)
+head(anc.bm.dredge2,10)
+anc.bm.avgmod2.d4 <- model.avg(anc.bm.dredge2, subset = delta < 4)
+summary(anc.bm.avgmod2.d4)
+importance(anc.bm.avgmod2.d4) 
 # AICc range 735-739
 
-write.csv(data.frame(anc.avgmod2.d4$importance), "Analysis/OutputTables/AncImportance.csv")
-write.csv(data.frame(anc.avgmod2.d4$coef.shrinkage), "Analysis/OutputTables/AncShrinkage.csv")
+write.csv(data.frame(anc.bm.avgmod2.d4$importance), "Analysis/OutputTables/AncImportance.csv")
+write.csv(data.frame(anc.bm.avgmod2.d4$coef.shrinkage), "Analysis/OutputTables/AncShrinkage.csv")
 ##############################################################
 
 
@@ -82,17 +82,17 @@ write.csv(data.frame(anc.avgmod2.d4$coef.shrinkage), "Analysis/OutputTables/AncS
 # Fit the best model ####
 # with both glmer() and glmmadmb():
 
-# anc.best2 <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+# anc.bm.best2 <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
+anc.bm.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 
 # **The best model includes an Interaction term!!!**
 
 # Summary output ####
 # summary
-summary(anc.best)
+summary(anc.bm.best)
 
 # anova
-summary(aov(anc.best))
+summary(aov(anc.bm.best))
 ##############################################################
 
 
@@ -101,14 +101,14 @@ summary(aov(anc.best))
 # Model Validation ####
 
 ## Confidence Intervals ####
-confint(anc.best)
-coefplot2(anc.best)
+confint(anc.bm.best)
+coefplot2(anc.bm.best)
 
 ## Check Model Assumptions ####
 
-E1 <- resid(anc.best, type="pearson")
-F1 <- fitted(anc.best, type="response")
-P1 <- predict(anc.best, type="response")
+E1 <- resid(anc.bm.best, type="pearson")
+F1 <- fitted(anc.bm.best, type="response")
+P1 <- predict(anc.bm.best, type="response")
 
 par(mfrow=c(2,2),
     mar=c(4,4.5,1,2))
@@ -161,16 +161,16 @@ par(lo)
 
 ## Overdispersion ####
 N <- nrow(data)
-p <- length(coef(anc.best)) # +1 in case of negbin
+p <- length(coef(anc.bm.best)) # +1 in case of negbin
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 # glmer has less dispersion
 
-overdisp_fun(anc.best)
+overdisp_fun(anc.bm.best)
 
 ## Explained variation ####
 
-r.squaredGLMM(anc.best2)
+r.squaredGLMM(anc.bm.best2)
 
 ## Some more plots ####
 # Plots of Predicted Values
@@ -197,7 +197,7 @@ par(lo)
 
 ## create test data set with all covariates IN the model
 # to predict for age_class only, take the mean of all continous covariates
-anc.td = expand.grid(age_class=unique(data$age_class),
+anc.bm.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
                      scl.ats1 = mean(data$scl.ats1),
                      scl.prec1 = mean(data$scl.prec1),
@@ -207,30 +207,30 @@ anc.td = expand.grid(age_class=unique(data$age_class),
 ## calculate confidence intervals for predictions from test dataset
 
 # In case of glmmadmb:
-    #anc.pred <- cbind(anc.td, predict(anc.best2, newdata = anc.td, interval = "confidence")) 
+#anc.bm.pred <- cbind(anc.bm.td, predict(anc.bm.best2, newdata = anc.bm.td, interval = "confidence")) 
 
 # In case of glmer
-    X <- model.matrix(~ age_class*samcam + I(scl.ats1^2) + scl.prec1, data = anc.td)
-    anc.td$fit <- X %*% fixef(anc.best)
-    anc.td$SE <- sqrt(  diag(X %*%vcov(anc.best) %*% t(X))  )
-    anc.td$upr=anc.td$fit+1.96*anc.td$SE
-    anc.td$lwr=anc.td$fit-1.96*anc.td$SE
-    anc.pred <- anc.td
+X <- model.matrix(~ age_class*samcam + I(scl.ats1^2) + scl.prec1, data = anc.bm.td)
+anc.bm.td$fit <- X %*% fixef(anc.bm.best)
+anc.bm.td$SE <- sqrt(  diag(X %*%vcov(anc.bm.best) %*% t(X))  )
+anc.bm.td$upr=anc.bm.td$fit+1.96*anc.bm.td$SE
+anc.bm.td$lwr=anc.bm.td$fit-1.96*anc.bm.td$SE
+anc.bm.pred <- anc.bm.td
 
 # Rename samcam for facetting
-anc.pred$samcam2 <- plyr::revalue(anc.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
-anc.pred$age_class <- plyr::revalue(anc.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
+anc.bm.pred$samcam2 <- plyr::revalue(anc.bm.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
+anc.bm.pred$age_class <- plyr::revalue(anc.bm.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
 
 # Reverse scaling of covariate
-anc.pred$ats1 <- anc.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
+anc.bm.pred$ats1 <- anc.bm.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
 
 ## plot predictions with error bars // confidence intervals???
-predfig.anc1 <- ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+predfig.anc1 <- ggplot(anc.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
   geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
   geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
   facet_grid(.~samcam2) +
   geom_hline(xintercept = 1, size=0.15) +
-  ylab("Anecic Abundance Ind./m²") +
+  ylab("Anecic Biomass [g]") +
   xlab("Age Class") +
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
   scale_y_continuous(limits=c(0,110)) +
@@ -241,7 +241,7 @@ predfig.anc1
 #ggsave(predfig.anc1,filename="Analysis/Figures/Figure3_AncPredGlmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 
 # Prediction plots for average temperature! ####
-anc.td = expand.grid(age_class=unique(data$age_class),
+anc.bm.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
                      scl.prec1 = mean(data$scl.prec1),
                      scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1), by=0.2),
@@ -251,31 +251,31 @@ anc.td = expand.grid(age_class=unique(data$age_class),
 ## calculate confidence intervals for predictions from test dataset
 
 # In case of glmmadmb:
-    #anc.pred <- cbind(anc.td, predict(anc.best, newdata = anc.td, interval = "confidence")) 
+#anc.bm.pred <- cbind(anc.bm.td, predict(anc.bm.best, newdata = anc.bm.td, interval = "confidence")) 
 
 # In case of glmer
-    X <- model.matrix(~ age_class*samcam + I(scl.ats1^2) + scl.prec1, data = anc.td)
-    anc.td$fit <- X %*% fixef(anc.best)
-    anc.td$SE <- sqrt(  diag(X %*%vcov(anc.best) %*% t(X))  )
-    anc.td$upr=anc.td$fit+1.96*anc.td$SE
-    anc.td$lwr=anc.td$fit-1.96*anc.td$SE
-    anc.pred <- anc.td
+X <- model.matrix(~ age_class*samcam + I(scl.ats1^2) + scl.prec1, data = anc.bm.td)
+anc.bm.td$fit <- X %*% fixef(anc.bm.best)
+anc.bm.td$SE <- sqrt(  diag(X %*%vcov(anc.bm.best) %*% t(X))  )
+anc.bm.td$upr=anc.bm.td$fit+1.96*anc.bm.td$SE
+anc.bm.td$lwr=anc.bm.td$fit-1.96*anc.bm.td$SE
+anc.bm.pred <- anc.bm.td
 
 # Rename samcam for facetting
-anc.pred$samcam2 <- plyr::revalue(anc.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
-anc.pred$age_class <- plyr::revalue(anc.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
+anc.bm.pred$samcam2 <- plyr::revalue(anc.bm.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
+anc.bm.pred$age_class <- plyr::revalue(anc.bm.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
 
 # Reverse scaling of covariate
-anc.pred$ats1 <- anc.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
+anc.bm.pred$ats1 <- anc.bm.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
 
 
-predfig.anc2 <- ggplot(anc.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam2)) + 
+predfig.anc2 <- ggplot(anc.bm.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam2)) + 
   geom_point() +
   #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
   geom_errorbar(position = position_dodge(1),width=0.15, size=0.15) + 
   facet_grid(.~age_class) +
   geom_hline(xintercept = 1, size=0.15) +
-  ylab("Anecic Abundance Ind./m²") +
+  ylab("Anecic Biomass [g]") +
   xlab(expression(paste("T3",0[surface]))) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
@@ -288,25 +288,25 @@ predfig.anc2
 ##############################################################
 # Coefficients and Statistics ####
 # Claculate a whole lot of coefficients and statistics
-anc.pred <- within(anc.pred, {
-  AIC <- AIC(anc.best)
-  Rrandom <- summary(lm(fitted(anc.best)~ data$anc))$adj.r.squared
-  Rsquared <- summary(lm(predict(anc.best, type="response")~ data$anc))$adj.r.squared  
+anc.bm.bm.pred <- within(anc.bm.bm.pred, {
+  AIC <- AIC(anc.bm.bm.best)
+  Rrandom <- summary(lm(fitted(anc.bm.bm.best)~ data$anc))$adj.r.squared
+  Rsquared <- summary(lm(predict(anc.bm.bm.best, type="response")~ data$anc))$adj.r.squared  
 })
 
-anc.stat = round(summary(anc.best)$coefficients[, c(3,4)],4)
-anc.coef = coeftab(anc.best)
+anc.bm.bm.stat = round(summary(anc.bm.bm.best)$coefficients[, c(3,4)],4)
+anc.bm.coef = coeftab(anc.bm.best)
 
-anc.env <- glmmadmb(anc ~ samcam + scl.prec1 + I(scl.ats1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
-anc.pvalue <- anova(anc.env, anc.best)$"Pr(>Chi)"
+anc.bm.env <- glmmadmb(anc ~ samcam + scl.prec1 + I(scl.ats1^2) + (1|field.ID) + offset(log(area)),data=data,family="poisson")
+anc.bm.pvalue <- anova(anc.bm.env, anc.bm.best)$"Pr(>Chi)"
 
-anc.OUT1 = anc.pred
-anc.OUT2 = cbind(anc.stat,anc.coef,LogLikP=anc.pvalue[2],fixef=fixef(anc.best))
-anc.OUT1
-anc.OUT2
+anc.bm.OUT1 = anc.bm.pred
+anc.bm.OUT2 = cbind(anc.bm.stat,anc.bm.coef,LogLikP=anc.bm.pvalue[2],fixef=fixef(anc.bm.best))
+anc.bm.OUT1
+anc.bm.OUT2
 
-#write.table(anc.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
-#write.table(anc.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(anc.bm.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
+#write.table(anc.bm.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
 ##############################################################
 
 
@@ -317,23 +317,23 @@ anc.OUT2
 
 # Model with the interaction term
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
-anc.tukey <- glmer(anc ~ ia.acl.smc + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
-# summary(anc.tukey)
+anc.bm.tukey <- glmer(anc ~ ia.acl.smc + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+# summary(anc.bm.tukey)
 
 # Create contrast matrix
 source("Analysis/F2_EW_ContrastMatrix.R")
 
 # Pairwise comparisons (with interaction term)
-anc.pairwise <- glht(anc.tukey, linfct=mcp(ia.acl.smc = cm1))
-anc.pw.ci <- confint(anc.pairwise)
-summary(anc.pairwise, test=adjusted(type="fdr"))
+anc.bm.pairwise <- glht(anc.bm.tukey, linfct=mcp(ia.acl.smc = cm1))
+anc.bm.pw.ci <- confint(anc.bm.pairwise)
+summary(anc.bm.pairwise, test=adjusted(type="fdr"))
 
 # Confidence intervals including 0
-anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
-data.frame(names(anc.pw.sig))
+anc.bm.pw.sig <- which(anc.bm.pw.ci$confint[,2]>0)
+data.frame(names(anc.bm.pw.sig))
 
 # Plot Errorbars
-phfig1 <- ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+phfig1 <- ggplot(anc.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
   geom_errorbarh() + 
   geom_point() + 
   geom_vline(xintercept = 1) +
@@ -342,7 +342,7 @@ phfig1
 
 # plot confidence intervals
 par(mar=c(2,15,2,2))
-plot(anc.pw.ci) 
+plot(anc.bm.pw.ci) 
 ##############################################################
 
 
@@ -352,17 +352,17 @@ plot(anc.pw.ci)
 # main effect ####
 
 # Pairwise comparisons (without interaction term)
-anc.pairwise <- glht(anc.best, mcp(age_class = "Tukey"))
-anc.pw.ci <- confint(anc.pairwise)
-summary(anc.pairwise, test=adjusted(type="none"))
+anc.bm.pairwise <- glht(anc.bm.best, mcp(age_class = "Tukey"))
+anc.bm.pw.ci <- confint(anc.bm.pairwise)
+summary(anc.bm.pairwise, test=adjusted(type="none"))
 
 # Confidence intervals including 0
-anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
-data.frame(names(anc.pw.sig))
+anc.bm.pw.sig <- which(anc.bm.pw.ci$confint[,2]>0)
+data.frame(names(anc.bm.pw.sig))
 
 
 # Plot Errorbars
-ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+ggplot(anc.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
   geom_errorbarh() + 
   geom_point() + 
   geom_vline(xintercept = 1) +
@@ -370,7 +370,7 @@ ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(up
 
 # plot confidence intervals
 par(mar=c(2,15,2,2))
-plot(anc.pw.ci) 
+plot(anc.bm.pw.ci) 
 ##############################################################
 
 
@@ -380,16 +380,16 @@ plot(anc.pw.ci)
 # main effect ####
 
 # Pairwise comparisons (without interaction term)
-anc.pairwise <- glht(anc.best, mcp(samcam = "Tukey"))
-anc.pw.ci <- confint(anc.pairwise)
+anc.bm.pairwise <- glht(anc.bm.best, mcp(samcam = "Tukey"))
+anc.bm.pw.ci <- confint(anc.bm.pairwise)
 
 # Confidence intervals including 0
-anc.pw.sig <- which(anc.pw.ci$confint[,2]>0)
-data.frame(names(anc.pw.sig))
+anc.bm.pw.sig <- which(anc.bm.pw.ci$confint[,2]>0)
+data.frame(names(anc.bm.pw.sig))
 
 
 # Plot Errorbars
-ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
+ggplot(anc.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(upr))) + 
   geom_errorbarh() + 
   geom_point() + 
   geom_vline(xintercept = 1) +
@@ -397,5 +397,5 @@ ggplot(anc.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(up
 
 # plot confidence intervals
 par(mar=c(2,15,2,2))
-plot(anc.pw.ci) 
+plot(anc.bm.pw.ci) 
 ##############################################################

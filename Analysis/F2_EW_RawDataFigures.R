@@ -68,12 +68,12 @@ data1.rf2$sfg <- factor(data1.rf2$sfg , levels=c("anc", "ancad","end", "endad", 
 
 # Barplots
 # Abundance
-rfig1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=4*abc.mean, fill=sfg)) +  
+rfig1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=abc.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE, data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
-            geom_errorbar(aes(ymin=4*abc.mean-4*1.96*abc.se, ymax=4*abc.mean+4*1.96*abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+            geom_errorbar(aes(ymin=abc.mean-1.96*abc.se, ymax=abc.mean+1.96*abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
             facet_grid(.~samcam) +
             xlab("Age Class") + 
             ylab("Abundance") +
@@ -93,12 +93,12 @@ rfig1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=
 
 
 # Biomass
-rfig2 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=4*bm.mean, fill=sfg)) +  
+rfig2 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=bm.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE, data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
-            geom_errorbar(aes(ymin=4*bm.mean-4*1.96*bm.se, ymax=4*bm.mean+4*1.96*bm.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+            geom_errorbar(aes(ymin=bm.mean-1.96*bm.se, ymax=bm.mean+1.96*bm.se), position=position_dodge(0.9),width=0.15, size=0.15) +
             facet_grid(.~samcam) +
             xlab("Age Class") + 
             ylab("Biomass") +
