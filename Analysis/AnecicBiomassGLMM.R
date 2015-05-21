@@ -12,6 +12,35 @@ source("Data/GatherSource/F2_EW_MakeLikeFile.R")
 source("Data/GatherSource/CovariateStandardization.R")
 ##############################################################
 
+##############################################################
+# plot of anecic biomass
+# The data we want to model
+
+# !!!! requires data from raw figure plots
+
+anc.bm.fig1 <- ggplot(data1.rf[data1.rf$sfg.bm=="anc.bm",], aes(x=age_class, y=4*bm.mean, fill=sfg.bm)) +  
+  geom_bar(stat="identity", position="dodge") + 
+  geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
+  #geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
+  #geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE, data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
+  geom_errorbar(aes(ymin=4*bm.mean-4*1.96*bm.se, ymax=4*bm.mean+4*1.96*bm.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+  facet_grid(.~samcam) +
+  xlab("Age Class") + 
+  ylab("Abundance") +
+  #ylim(-10,max(data1.rf$abc.mean+data1.rf$abc.se)) +
+  labs(fill="Functional Group") +
+  scale_fill_grey(labels=c("anecic juvenile","anecic adult","endogeic juvenile", "endogeic adult","epigeic", "total")) +
+  scale_y_continuous(breaks=pretty_breaks(n=10)) +
+  scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
+  mytheme +
+  guides(fill=guide_legend(keywidth=0.5, keyheight=0.5)) +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
+        legend.title=element_text(size=6),
+        legend.text=element_text(size=7),
+        legend.position=c(0.18,0.68))
+
+anc.bm.fig1
+##############################################################
 
 
 ##############################################################
@@ -39,41 +68,52 @@ boxplot(anc.bm ~ field.ID+samcam, data, las=2, col="grey", main="Variability wit
 # since some covariates can't be used in the same model due to colinearity
 
 # Model Formulation
-anc.bm.glob1 <- glmer(I(anc.bm+0.0001) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
-anc.bm.glob2 <- glmer(I(anc.bm+0.0001) ~ age_class*samcam + scl.ats1 + I(scl.ats1^2)             + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+anc.bm.glob1 <- lmer(log1p(anc.bm) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc:scl.pH + + scl.ats1 + I(scl.ats1^2) + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data)
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
 summary(anc.bm.glob1)
-summary(anc.bm.glob2)
 
 # Overdispersion
-E1 <- resid(anc.bm.glob2, type="pearson")
+E1 <- resid(anc.bm.glob1, type="pearson")
 N <- nrow(data)
-p <- length(coef(anc.bm.glob2)) #  "+1"  would be used negative in neg binomial distribution for determining the number of parameters (p) due to the "k" 
+p <- length(coef(anc.bm.glob1)) #  "+1"  would be used negative in neg binomial distribution for determining the number of parameters (p) due to the "k" 
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 
 ## Multimodel averaging ####
 
-load("Analysis/F2_EW_glmerDredge.RData")
+load("Analysis/F2_EW_BiomassDredge2.RData")
 
-#anc.bm.dredge1 <- dredge(anc.bm.glob1)
+### Suppose we want to have set of models that exclude combinations of colinear ####
+# variables, that are significantly (p < 0.05) correlated, with Pearson
+# correlation coefficient larger than r = 0.5.
+
+std.var2 <- std.var[,c("scl.ats1","scl.cn", "scl.prec1", "scl.clay", "scl.mc", "scl.pH")]
+std.var2 <- cbind(std.var2, "I(scl.mc^2)"=std.var$scl.mc^2,"I(scl.ats1^2)" = std.var$scl.ats1^2)#,age_class=data$age_class, age_class=data$samcam)
+
+# Create logical matrix
+# Use functions from the MakeLikeFile!
+smat <- outer(1:8, 1:8, vCorrelated, data = std.var2)
+
+nm <- colnames(std.var2[1:8])
+
+# Although the squared terms seem not to correlate between mc and ats, we won't fit them within the same model
+smat[5,1] <- FALSE
+smat[7,1]<- FALSE
+smat[8,5]<- FALSE
+smat[8,7]<- FALSE
+
+smat
+
+### Compute all possible models ####
+#anc.bm.dredge1 <- dredge(anc.bm.glob1, subset=smat)
 head(anc.bm.dredge1,10)
 anc.bm.avgmod1.d4 <- model.avg(anc.bm.dredge1, subset = delta < 4)
 summary(anc.bm.avgmod1.d4)
-data.frame(importance(anc.bm.avgmod1.d4))
-# AICc range 741-745
 
-#anc.bm.dredge2 <- dredge(anc.bm.glob2)
-head(anc.bm.dredge2,10)
-anc.bm.avgmod2.d4 <- model.avg(anc.bm.dredge2, subset = delta < 4)
-summary(anc.bm.avgmod2.d4)
-importance(anc.bm.avgmod2.d4) 
-# AICc range 735-739
-
-write.csv(data.frame(anc.bm.avgmod2.d4$importance), "Analysis/OutputTables/AncImportance.csv")
-write.csv(data.frame(anc.bm.avgmod2.d4$coef.shrinkage), "Analysis/OutputTables/AncShrinkage.csv")
+write.csv(data.frame(anc.bm.avgmod1.d4$importance), "Analysis/OutputTables/AncImportance.csv")
+write.csv(data.frame(anc.bm.avgmod1.d4$coef.shrinkage), "Analysis/OutputTables/AncShrinkage.csv")
 ##############################################################
 
 
@@ -82,8 +122,7 @@ write.csv(data.frame(anc.bm.avgmod2.d4$coef.shrinkage), "Analysis/OutputTables/A
 # Fit the best model ####
 # with both glmer() and glmmadmb():
 
-# anc.bm.best2 <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-anc.bm.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+anc.bm.best <- lmer(log1p(anc.bm) ~ age_class + scl.ats1 + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data)
 
 # **The best model includes an Interaction term!!!**
 
@@ -106,19 +145,23 @@ coefplot2(anc.bm.best)
 
 ## Check Model Assumptions ####
 
-E1 <- resid(anc.bm.best, type="pearson")
+E1 <- resid(anc.bm.best, type="response")
 F1 <- fitted(anc.bm.best, type="response")
 P1 <- predict(anc.bm.best, type="response")
 
 par(mfrow=c(2,2),
     mar=c(4,4.5,1,2))
 # Plot fitted vs. residuals
-scatter.smooth(F1, E1, cex.lab = 1.5, ylab=" Residuals", xlab="Fitted values")
+scatter.smooth(F1, E1, cex.lab = 1.5, xlab="Fitted values", ylab=" Residuals")
 abline(h = 0, v=0, lty=2)
-data$field[[69]]
+
+
+# plot predicted vs. residuals
+scatter.smooth(P1, E1, cex.lab = 1.5, xlab="Predicted values", ylab=" Residuals")
+abline(h = 0, v=0, lty=2)
 
 # plot fitted vs. predicted
-scatter.smooth(F1, P1, cex.lab = 1.5, ylab=" Residuals", xlab="Predicted values")
+scatter.smooth(F1, P1, cex.lab = 1.5, xlab="Fitted values", ylab="Predicted")
 abline(h = 0, v=0, lty=2)
 
 # Histogram of Residuals
@@ -127,7 +170,8 @@ lines(density(E1), col="light blue", lwd=3)
 lines(density(E1, adjust=2), lty="dotted", col="darkgreen", lwd=2) 
 
 # Normal QQ Plot
-qqplot(E1)
+qqnorm(y=resid(anc.bm.best))
+qqline(y=resid(anc.bm.best))
 
 # Cooks Distances
 
@@ -178,7 +222,7 @@ par(mfrow=c(2,2))
 plot(data$age_class,P1)
 plot(data$samcam,P1)
 plot(data$ats1^2,P1)
-plot(data$prec1^2,P1)
+plot(data$prec1,P1)
 
 # Plots of fitted Values
 par(mfrow=c(2,2))
@@ -198,10 +242,9 @@ par(lo)
 ## create test data set with all covariates IN the model
 # to predict for age_class only, take the mean of all continous covariates
 anc.bm.td = expand.grid(age_class=unique(data$age_class),
-                     samcam = unique(data$samcam),               
-                     scl.ats1 = mean(data$scl.ats1),
-                     scl.prec1 = mean(data$scl.prec1),
-                     area = 1)
+                         scl.ats1 = mean(data$scl.ats1),
+                         scl.prec1 = mean(data$scl.cn),
+                         area = 1)
 
 
 ## calculate confidence intervals for predictions from test dataset
@@ -210,7 +253,7 @@ anc.bm.td = expand.grid(age_class=unique(data$age_class),
 #anc.bm.pred <- cbind(anc.bm.td, predict(anc.bm.best2, newdata = anc.bm.td, interval = "confidence")) 
 
 # In case of glmer
-X <- model.matrix(~ age_class*samcam + I(scl.ats1^2) + scl.prec1, data = anc.bm.td)
+X <- model.matrix(~ age_class + scl.ats1 + scl.prec1, data = anc.bm.td)
 anc.bm.td$fit <- X %*% fixef(anc.bm.best)
 anc.bm.td$SE <- sqrt(  diag(X %*%vcov(anc.bm.best) %*% t(X))  )
 anc.bm.td$upr=anc.bm.td$fit+1.96*anc.bm.td$SE
@@ -218,7 +261,7 @@ anc.bm.td$lwr=anc.bm.td$fit-1.96*anc.bm.td$SE
 anc.bm.pred <- anc.bm.td
 
 # Rename samcam for facetting
-anc.bm.pred$samcam2 <- plyr::revalue(anc.bm.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
+#anc.bm.pred$samcam2 <- plyr::revalue(anc.bm.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
 anc.bm.pred$age_class <- plyr::revalue(anc.bm.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
 
 # Reverse scaling of covariate
@@ -228,12 +271,13 @@ anc.bm.pred$ats1 <- anc.bm.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
 predfig.anc1 <- ggplot(anc.bm.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
   geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
   geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
-  facet_grid(.~samcam2) +
+  #facet_grid(.~samcam2) +
   geom_hline(xintercept = 1, size=0.15) +
   ylab("Anecic Biomass [g]") +
   xlab("Age Class") +
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
-  scale_y_continuous(limits=c(0,110)) +
+  scale_y_log10() +
+  scale_y_continuous( breaks=pretty_breaks()) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.anc1
@@ -242,8 +286,7 @@ predfig.anc1
 
 # Prediction plots for average temperature! ####
 anc.bm.td = expand.grid(age_class=unique(data$age_class),
-                     samcam = unique(data$samcam),               
-                     scl.prec1 = mean(data$scl.prec1),
+                     scl.prec1 = seq(min(data$scl.prec1),max(data$scl.prec1), length.out=5),
                      scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1), by=0.2),
                      area = 1)
 
@@ -254,7 +297,7 @@ anc.bm.td = expand.grid(age_class=unique(data$age_class),
 #anc.bm.pred <- cbind(anc.bm.td, predict(anc.bm.best, newdata = anc.bm.td, interval = "confidence")) 
 
 # In case of glmer
-X <- model.matrix(~ age_class*samcam + I(scl.ats1^2) + scl.prec1, data = anc.bm.td)
+X <- model.matrix(~ age_class + scl.ats1 + scl.prec1, data = anc.bm.td)
 anc.bm.td$fit <- X %*% fixef(anc.bm.best)
 anc.bm.td$SE <- sqrt(  diag(X %*%vcov(anc.bm.best) %*% t(X))  )
 anc.bm.td$upr=anc.bm.td$fit+1.96*anc.bm.td$SE
@@ -262,18 +305,18 @@ anc.bm.td$lwr=anc.bm.td$fit-1.96*anc.bm.td$SE
 anc.bm.pred <- anc.bm.td
 
 # Rename samcam for facetting
-anc.bm.pred$samcam2 <- plyr::revalue(anc.bm.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
+#anc.bm.pred$samcam2 <- plyr::revalue(anc.bm.td$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
 anc.bm.pred$age_class <- plyr::revalue(anc.bm.td$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
 
 # Reverse scaling of covariate
 anc.bm.pred$ats1 <- anc.bm.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
+anc.bm.pred$prec1 <- anc.bm.pred$scl.prec1* sd(data$prec1) + mean(data$prec1)
 
-
-predfig.anc2 <- ggplot(anc.bm.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam2)) + 
+predfig.anc2 <- ggplot(anc.bm.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
   geom_point() +
   #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
   geom_errorbar(position = position_dodge(1),width=0.15, size=0.15) + 
-  facet_grid(.~age_class) +
+  facet_grid(prec1~age_class) +
   geom_hline(xintercept = 1, size=0.15) +
   ylab("Anecic Biomass [g]") +
   xlab(expression(paste("T3",0[surface]))) +

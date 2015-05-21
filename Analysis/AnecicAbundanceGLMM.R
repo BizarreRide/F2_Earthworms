@@ -113,12 +113,16 @@ P1 <- predict(anc.best, type="response")
 par(mfrow=c(2,2),
     mar=c(4,4.5,1,2))
 # Plot fitted vs. residuals
-scatter.smooth(F1, E1, cex.lab = 1.5, ylab=" Residuals", xlab="Fitted values")
+scatter.smooth(F1, E1, cex.lab = 1.5, xlab="Fitted values", ylab=" Residuals")
 abline(h = 0, v=0, lty=2)
-data$field[[69]]
+
+
+# plot predicted vs. residuals
+scatter.smooth(P1, E1, cex.lab = 1.5, xlab="Predicted values", ylab=" Residuals")
+abline(h = 0, v=0, lty=2)
 
 # plot fitted vs. predicted
-scatter.smooth(F1, P1, cex.lab = 1.5, ylab=" Residuals", xlab="Predicted values")
+scatter.smooth(F1, P1, cex.lab = 1.5, xlab="Fitted values", ylab="Predicted")
 abline(h = 0, v=0, lty=2)
 
 # Histogram of Residuals
@@ -127,7 +131,8 @@ lines(density(E1), col="light blue", lwd=3)
 lines(density(E1, adjust=2), lty="dotted", col="darkgreen", lwd=2) 
 
 # Normal QQ Plot
-qqplot(E1)
+qqnorm(y=resid(anc.bm.best))
+qqline(y=resid(anc.bm.best))
 
 # Cooks Distances
 

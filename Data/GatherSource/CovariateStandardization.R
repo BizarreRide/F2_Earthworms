@@ -35,4 +35,4 @@ data$dsamcam <- with(data, round(c(rep(0,60),date[61:120]-date[1:60],date[121:18
 # create covariate for offset, area = area of the pit where the soil-core was taken from
 data$area <- rep(0.25,180)
 
-rm(std.var)
+

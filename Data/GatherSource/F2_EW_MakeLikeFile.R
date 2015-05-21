@@ -23,6 +23,10 @@ source("Data/GatherSource/Functions/coldiss.R")
 source("Data/GatherSource/Functions/panelutils.R")
 source("Data/GatherSource/Functions/HighStatLibV8.R")
 source("Data/GatherSource/ggplotTheme.R")
+##############################################################
+
+##############################################################
+# more functions
 
 
 lo <- par(mfrow=c(1,1))
@@ -56,4 +60,12 @@ whisk <- function(df,cond_col=1,val_col=2) {
   df2
 }
 
+is.correlated <- function(i, j, data, conf.level = .95, cutoff = .5, ...) {
+  if(j >= i) return(NA)
+  ct <- cor.test(data[, i], data[, j], conf.level = conf.level, ...)
+  ct$p.value > (1 - conf.level) || abs(ct$estimate) <= cutoff
+}
+
+# Need vectorized function to use with 'outer'
+vCorrelated <- Vectorize(is.correlated, c("i", "j"))
 ##############################################################
