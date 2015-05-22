@@ -5,19 +5,46 @@
 # 07.05.2015
 #################
 
-
-##############################################################
-# Standardize Covariates
+# Standardize Covariates ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 source("Data/GatherSource/F2_EW_MakeLikeFile.R")
 source("Data/GatherSource/CovariateStandardization.R")
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #!!!! I model only adult endogeics, since this decreases the varaince and buffers very large abundance values!!!!!!!!
 
+# plot of anecic abundance ####
+# *The data we want to model*
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-##############################################################
+# !!!! requires data from raw figure plots
+source("Analysis/F2_EW_RawDataFigures.R")
+
+endad.raw <-  ggplot(data1.rf[data1.rf$sfg=="endad",], aes(x=age_class, y=abc.mean, fill=sfg)) +  
+              geom_bar(stat="identity", position="dodge") + 
+              geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
+              #geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
+              #geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE, data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
+              geom_errorbar(aes(ymin=abc.mean-1.96*abc.se, ymax=abc.mean+1.96*abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+              facet_grid(.~samcam) +
+              xlab("Age Class") + 
+              ylab("Abundance") +
+              #ylim(-10,max(data1.rf$abc.mean+data1.rf$abc.se)) +
+              labs(fill="Functional Group") +
+              scale_fill_grey(labels=c("anecic total")) +
+              scale_y_continuous(breaks=pretty_breaks(n=10)) +
+       Shrinkage       scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
+              mytheme +
+              guides(fill=guide_legend(keywidth=0.5, keyheight=0.5)) +
+              theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
+                    legend.title=element_text(size=10),
+                    legend.text=element_text(size=10),
+                    legend.position=c(0.1,0.92))
+endad.raw
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 # Assess variability in random effects ####
-
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Variability within sites
 boxplot(endad~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
 
@@ -26,13 +53,13 @@ boxplot(endad~samcam, data,col="grey", main="Variability within sampling campaig
 
 # variability within sites and sampling campaigns
 boxplot(endad~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
-##############################################################
-
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 ## GLMM using glmer & glmmADMB ####
 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 # Global model Formulation ####
 
 # I Formulate two different candidate models, 
@@ -56,7 +83,7 @@ Dispersion
 
 ## Multimodel averaging ####
 
-load("Analysis/F2_EW_glmerDredge.RData")
+load("Analysis/F2_EW_AbundanceDredge_glmer.RData")
 
 #endad.dredge1 <- dredge(endad.glob1)
 head(endad.dredge1,10)
@@ -76,13 +103,12 @@ endad.avgmod.95p <- model.avg(endad.dredge2, cumsum(weight) <= .95)
 
 write.csv(data.frame(endad.avgmod1.d4$importance), "Analysis/OutputTables/EndadImportance.csv")
 write.csv(data.frame(endad.avgmod1.d4$coef.shrinkage), "Analysis/OutputTables/EndadShrinkage.csv")
-##############################################################
+write.csv(data.frame(endad.avgmod1.d4$msTable), "Analysis/OutputTables/EndadSubsetModels.csv")
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-
-##############################################################
 # Fit the best model ####
 # with both glmer() and glmmadmb():
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # endad.best2 <- glmmadmb(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
 endad.best <- glmer(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
@@ -95,18 +121,17 @@ summary(endad.best)
 
 # anova
 summary(aov(endad.best))
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+## Model Validation ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-##############################################################
-# Model Validation
-
-## Confidence Intervals ####
+# Confidence Intervals ####
 confint(endad.best)
 coefplot2(endad.best)
 
-## Check Model Assumptions ####
+# Check Model Assumptions ####
 
 E1 <- resid(endad.best, type="pearson")
 F1 <- fitted(endad.best, type="response")
@@ -140,13 +165,12 @@ qqline(y=resid(anc.bm.best))
 
 par(lo)
 
-## Datasets ####
+# plot residuals vs. all covariates ####
+
 # Dataset with all variables IN the model
 env1 <- cbind(E1, F1, data[,c("endad", "age_class", "samcam", "ats1")]) # should "ats1" be squared?
 # covariates NOT in the model
 env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "hum1","dgO")])
-
-## plot residuals vs. all covariates ####
 
 # IN the model
 par(mfrow=c(2,3),
@@ -166,7 +190,7 @@ for (i in 1:length(env0)) {
 }
 par(lo)
 
-## Overdispersion ####
+# Overdispersion ####
 N <- nrow(data)
 p <- length(coef(endad.best)) # +1 in case of negbin
 Dispersion <- sum(E1^2)/(N-p)
@@ -175,11 +199,11 @@ Dispersion
 
 overdisp_fun(endad.best)
 
-## Explained variation ####
+# Explained variation ####
 
 r.squaredGLMM(endad.best)
 
-## Some more plots ####
+## Some more plots of fitted and predicted values ####
 # Plots of Predicted Values (- random term)
 par(mfrow=c(2,2))
 plot(data$age_class,P1)
@@ -197,12 +221,12 @@ plot(data$pH,F1)
 plot(data$hum1,F1)
 
 par(lo)
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
-##############################################################
-## Predictionplots for Age Class x SamCam ####
+## Predictionplots ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Predictionplots for Age Class x SamCam ####
 
 # create test data set with all covariates IN the model
 # to predict for age_class only, take the mean of all continous covariates
@@ -251,7 +275,7 @@ predfig.endad1 <- ggplot(endad.pred, aes(x = age_class, y = exp(fit), ymin = exp
 predfig.endad1
 #ggsave(predfig.endad1,filename="Analysis/Figures/Figure4_EndadPredGlmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 
-## Prediction plots for average temperature! ####
+# Prediction plots for average temperature! ####
 endad.td = expand.grid(age_class=unique(data$age_class),
                        samcam = unique(data$samcam),               
                        scl.prec1 = mean(data$scl.prec1),#seq(min(data$scl.prec1),max(data$scl.prec1), by=0.2),
@@ -295,11 +319,12 @@ predfig.endad2 <- ggplot(endad.pred, aes(x = pH, y = exp(fit), ymin = exp(lwr), 
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.endad2
 #ggsave(predfig.endad2,filename="Analysis/Figures/Figure4_EndadPredGlmerPHxMc.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 # Coefficients and Statistics ####
 # Claculate a whole lot of coefficients and statistics
 endad.pred <- within(endad.pred, {
@@ -322,13 +347,13 @@ endad.OUT2
 
 #write.table(endad.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
 #write.table(endad.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
-##############################################################
-# Post-Hoc Multicomparisons for age class x samcam, 
-# interaction effect - reduced contrast matrix ####
+## Post-Hoc Multicomparisons ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Post-Hoc Multicomparisons for age class x samcam, ####
+# interaction effect - reduced contrast matrix
 
 # Model with the interaction term
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
@@ -358,13 +383,13 @@ phfig1
 # plot confidence intervals
 par(mar=c(2,15,2,2))
 plot(endad.pw.ci) 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
-##############################################################
-# Post-Hoc Multicomparisons for age class, 
-# main effect ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Post-Hoc Multicomparisons for age class, ####
+# main effect
 
 # Pairwise comparisons (without interaction term)
 endad.pairwise <- glht(endad.best, mcp(age_class = "Tukey"))
@@ -386,13 +411,13 @@ ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(
 # plot confidence intervals
 par(mar=c(2,15,2,2))
 plot(endad.pw.ci) 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
-##############################################################
-# Post-Hoc Multicomparisons for samcam, 
-# main effect ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Post-Hoc Multicomparisons for samcam, ####
+# main effect
 
 # Pairwise comparisons (without interaction term)
 endad.pairwise <- glht(endad.best, mcp(samcam = "Tukey"))
@@ -413,4 +438,4 @@ ggplot(endad.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp(
 # plot confidence intervals
 par(mar=c(2,15,2,2))
 plot(endad.pw.ci) 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

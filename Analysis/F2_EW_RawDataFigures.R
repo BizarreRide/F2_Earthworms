@@ -68,7 +68,7 @@ data1.rf2$sfg <- factor(data1.rf2$sfg , levels=c("anc", "ancad","end", "endad", 
 
 # Barplots
 # Abundance
-rfig1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=abc.mean, fill=sfg)) +  
+rfig1.abc1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=abc.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
@@ -89,11 +89,11 @@ rfig1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=
                   legend.text=element_text(size=7),
                   legend.position=c(0.18,0.68))
 
-#ggsave(rfig1,filename="Analysis/Figures/Figure1.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+#ggsave(rfig1.abc1,filename="Analysis/Figures/Figure1.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 
 
 # Biomass
-rfig2 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=bm.mean, fill=sfg)) +  
+rfig2.bm1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=bm.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
@@ -114,7 +114,7 @@ rfig2 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=
                   legend.text=element_text(size=7),
                   legend.position=c(0.18,0.68))
 
-#ggsave(rfig2,filename="Analysis/Figures/Figure2.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+#ggsave(rfig2.bm1,filename="Analysis/Figures/Figure2.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 
 
 ## Version 2 with "2nd Order" data ####
@@ -164,7 +164,7 @@ data2.rf2$sfg <- factor(data2.rf2$sfg , levels=c("anc", "ancad","end", "endad", 
 
 # Barplots
 # Abundance
-rfig3 <- ggplot(data2.rf[data2.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=abc.mean, fill=sfg)) +  
+rfig3.abc2 <- ggplot(data2.rf[data2.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=abc.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data2.rf2[data2.rf2$sfg!=c("anc","end"),]) +
@@ -186,7 +186,7 @@ rfig3 <- ggplot(data2.rf[data2.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=
                   legend.position=c(0.18,0.68))
 
 # Biomass
-rfig4 <- ggplot(data2.rf[data2.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=bm.mean, fill=sfg)) +  
+rfig4.bm2 <- ggplot(data2.rf[data2.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=bm.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data2.rf2[data2.rf2$sfg!=c("anc","end"),]) +
@@ -253,7 +253,7 @@ data3.rf2$sfg <- factor(data3.rf2$sfg , levels=c("anc", "ancad","end", "endad", 
 
 # Barplots
 # Abundance
-rfig5 <- ggplot(data3.rf[data3.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=abc.mean, fill=sfg)) +  
+rfig5.abc3 <- ggplot(data3.rf[data3.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=abc.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data3.rf2[data3.rf2$sfg!=c("anc","end"),]) +
@@ -274,7 +274,7 @@ rfig5 <- ggplot(data3.rf[data3.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=
                   legend.position=c(0.18,0.68))
 
 # Biomass
-rfig6 <- ggplot(data3.rf[data3.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=bm.mean, fill=sfg)) +  
+rfig6.bm3 <- ggplot(data3.rf[data3.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=bm.mean, fill=sfg)) +  
             geom_bar(stat="identity", position="dodge") + 
             geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
             geom_bar(stat="identity", position="dodge", data=data3.rf2[data3.rf2$sfg!=c("anc","end"),]) +
@@ -306,6 +306,6 @@ rfig6 <- ggplot(data3.rf[data3.rf$sfg!=c("endad","ancad"),], aes(x=age_class, y=
 
 
 # Clean up
-rm(data1.raw.fig, data1.rf, data1.rf2, data1.rf.melted, data1.rf.melted2,
-   data2.raw.fig, data2.rf, data2.rf2, data2.rf.melted, data2.rf.melted2,
-   data3.raw.fig, data3.rf, data3.rf2, data3.rf.melted, data3.rf.melted2)
+rm(data1.raw.fig, data1.rf2, data1.rf.melted, data1.rf.melted2,
+   data2.raw.fig, data2.rf2, data2.rf.melted, data2.rf.melted2,
+   data3.raw.fig, data3.rf2, data3.rf.melted, data3.rf.melted2)

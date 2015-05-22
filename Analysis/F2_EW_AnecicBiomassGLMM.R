@@ -6,27 +6,29 @@
 #################
 
 
-##############################################################
-# Standardize Covariates
+# Standardize Covariates ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 source("Data/GatherSource/F2_EW_MakeLikeFile.R")
 source("Data/GatherSource/CovariateStandardization.R")
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-##############################################################
-# plot of anecic biomass
+# plot of anecic biomass ####
 # The data we want to model
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # !!!! requires data from raw figure plots
+source("Analysis/F2_EW_RawDataFigures.R")
+source("Data/GatherSource/CovariateStandardization.R")
 
-anc.bm.fig1 <- ggplot(data1.rf[data1.rf$sfg.bm=="anc.bm",], aes(x=age_class, y=4*bm.mean, fill=sfg.bm)) +  
+anc.bm.raw <- ggplot(data1.rf[data1.rf$sfg.bm=="anc.bm",], aes(x=age_class, y=bm.mean, fill=sfg.bm)) +  
   geom_bar(stat="identity", position="dodge") + 
   geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
   #geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
   #geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE, data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
-  geom_errorbar(aes(ymin=4*bm.mean-4*1.96*bm.se, ymax=4*bm.mean+4*1.96*bm.se), position=position_dodge(0.9),width=0.15, size=0.15) +
+  geom_errorbar(aes(ymin=bm.mean-1.96*bm.se, ymax=bm.mean+1.96*bm.se), position=position_dodge(0.9),width=0.15, size=0.15) +
   facet_grid(.~samcam) +
   xlab("Age Class") + 
-  ylab("Abundance") +
+  ylab("Biomass [g]") +
   #ylim(-10,max(data1.rf$abc.mean+data1.rf$abc.se)) +
   labs(fill="Functional Group") +
   scale_fill_grey(labels=c("anecic juvenile","anecic adult","endogeic juvenile", "endogeic adult","epigeic", "total")) +
@@ -39,13 +41,11 @@ anc.bm.fig1 <- ggplot(data1.rf[data1.rf$sfg.bm=="anc.bm",], aes(x=age_class, y=4
         legend.text=element_text(size=7),
         legend.position=c(0.18,0.68))
 
-anc.bm.fig1
-##############################################################
+anc.bm.raw
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-##############################################################
 # Assess variability in random effects ####
-
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Variability within sites
 boxplot(anc.bm ~ field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm Biomass")
 
@@ -54,14 +54,13 @@ boxplot(anc.bm ~ samcam, data,col="grey", main="Variability within sampling camp
 
 # variability within sites and sampling campaigns
 boxplot(anc.bm ~ field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm biomass")
-##############################################################
-
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
 ## GLMM using glmer ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-##############################################################
 # Global model Formulation ####
 
 # I Formulate two different candidate models, 
@@ -81,11 +80,11 @@ p <- length(coef(anc.bm.glob1)) #  "+1"  would be used negative in neg binomial 
 Dispersion <- sum(E1^2)/(N-p)
 Dispersion
 
-## Multimodel averaging ####
+# Multimodel averaging ####
 
-load("Analysis/F2_EW_BiomassDredge2.RData")
+load("Analysis/F2_EW_BiomassDredge.RData")
 
-### Suppose we want to have set of models that exclude combinations of colinear ####
+## Suppose we want to have set of models that exclude combinations of colinear
 # variables, that are significantly (p < 0.05) correlated, with Pearson
 # correlation coefficient larger than r = 0.5.
 
@@ -106,21 +105,20 @@ smat[8,7]<- FALSE
 
 smat
 
-### Compute all possible models ####
+## Compute all possible models 
 #anc.bm.dredge1 <- dredge(anc.bm.glob1, subset=smat)
 head(anc.bm.dredge1,10)
 anc.bm.avgmod1.d4 <- model.avg(anc.bm.dredge1, subset = delta < 4)
 summary(anc.bm.avgmod1.d4)
 
-write.csv(data.frame(anc.bm.avgmod1.d4$importance), "Analysis/OutputTables/AncImportance.csv")
-write.csv(data.frame(anc.bm.avgmod1.d4$coef.shrinkage), "Analysis/OutputTables/AncShrinkage.csv")
-##############################################################
+write.csv(data.frame(anc.bm.avgmod1.d4$importance), "Analysis/OutputTables/AncBmImportance.csv")
+write.csv(data.frame(anc.bm.avgmod1.d4$coef.shrinkage), "Analysis/OutputTables/AncBmShrinkage.csv")
+write.csv(data.frame(anc.bm.avgmod1.d4$msTable), "Analysis/OutputTables/AncBmSubsetModels.csv")
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-
-##############################################################
 # Fit the best model ####
-# with both glmer() and glmmadmb():
+# with glmer()
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 anc.bm.best <- lmer(log1p(anc.bm) ~ age_class + scl.ats1 + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data)
 
@@ -132,18 +130,17 @@ summary(anc.bm.best)
 
 # anova
 summary(aov(anc.bm.best))
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+## Model Validation ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-##############################################################
-# Model Validation ####
-
-## Confidence Intervals ####
+# Confidence Intervals ####
 confint(anc.bm.best)
 coefplot2(anc.bm.best)
 
-## Check Model Assumptions ####
+# Check Model Assumptions ####
 
 E1 <- resid(anc.bm.best, type="response")
 F1 <- fitted(anc.bm.best, type="response")
@@ -170,20 +167,19 @@ lines(density(E1), col="light blue", lwd=3)
 lines(density(E1, adjust=2), lty="dotted", col="darkgreen", lwd=2) 
 
 # Normal QQ Plot
-qqnorm(y=resid(anc.bm.best))
-qqline(y=resid(anc.bm.best))
+qqnorm(E1)
+qqline(E1)
 
 # Cooks Distances
 
 par(lo)
 
-## Datasets ####
+# plot residuals vs. all covariates ####
+
 # Dataset with all variables IN the model
 env1 <- cbind(E1, F1, data[,c("anc", "age_class", "samcam", "ats1", "prec1")]) # should "ats1" be squared?
 # covariates NOT in the model
 env0 <- cbind(E1, F1,data[,c("mc", "pH", "cn", "clay", "ats2", "hum1","dgO")])
-
-## plot residuals vs. all covariates ####
 
 # in the model
 par(mfrow=c(2,3),
@@ -203,7 +199,7 @@ for (i in 1:length(env0)) {
 }
 par(lo)
 
-## Overdispersion ####
+# Overdispersion ####
 N <- nrow(data)
 p <- length(coef(anc.bm.best)) # +1 in case of negbin
 Dispersion <- sum(E1^2)/(N-p)
@@ -212,11 +208,11 @@ Dispersion
 
 overdisp_fun(anc.bm.best)
 
-## Explained variation ####
+# Explained variation ####
 
-r.squaredGLMM(anc.bm.best2)
+r.squaredGLMM(anc.bm.best)
 
-## Some more plots ####
+# Some more plots of fitted and predicted values####
 # Plots of Predicted Values
 par(mfrow=c(2,2))
 plot(data$age_class,P1)
@@ -232,11 +228,12 @@ plot(data$ats1^2,F1)
 plot(data$prec1,F1)
 
 par(lo)
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+## Prediction plots ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
 
-###############################################################
 # Prediction plots for Age Clas x SamCam ####
 
 ## create test data set with all covariates IN the model
@@ -324,11 +321,11 @@ predfig.anc2 <- ggplot(anc.bm.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr),
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.anc2
 # ggsave(predfig.anc2,filename="Analysis/Figures/Figure3_AncPred2Glmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-##############################################################
 # Coefficients and Statistics ####
 # Claculate a whole lot of coefficients and statistics
 anc.bm.bm.pred <- within(anc.bm.bm.pred, {
@@ -350,13 +347,13 @@ anc.bm.OUT2
 
 #write.table(anc.bm.OUT1, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
 #write.table(anc.bm.OUT2, "Predictions+Stats+ConfIntervals.csv", sep=";", append=TRUE)
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
-##############################################################
-# Post-Hoc Multicomparisons for age class x samcam, 
-# interaction effect - reduced contrast matrix ####
+## Post-Hoc Multicomparisons ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Post-Hoc Multicomparisons for age class x samcam, ####
+# interaction effect - reduced contrast matrix 
 
 # Model with the interaction term
 data$ia.acl.smc <- interaction(data$age_class, data$samcam)
@@ -386,13 +383,13 @@ phfig1
 # plot confidence intervals
 par(mar=c(2,15,2,2))
 plot(anc.bm.pw.ci) 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
-##############################################################
-# Post-Hoc Multicomparisons for age class, 
-# main effect ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Post-Hoc Multicomparisons for age class, ####
+# main effect 
 
 # Pairwise comparisons (without interaction term)
 anc.bm.pairwise <- glht(anc.bm.best, mcp(age_class = "Tukey"))
@@ -414,13 +411,13 @@ ggplot(anc.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp
 # plot confidence intervals
 par(mar=c(2,15,2,2))
 plot(anc.bm.pw.ci) 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
-##############################################################
-# Post-Hoc Multicomparisons for samcam, 
-# main effect ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Post-Hoc Multicomparisons for samcam, ####
+# main effect 
 
 # Pairwise comparisons (without interaction term)
 anc.bm.pairwise <- glht(anc.bm.best, mcp(samcam = "Tukey"))
@@ -441,4 +438,8 @@ ggplot(anc.bm.pw.ci, aes(y = lhs, x = exp(estimate), xmin = exp(lwr), xmax = exp
 # plot confidence intervals
 par(mar=c(2,15,2,2))
 plot(anc.bm.pw.ci) 
-##############################################################
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
