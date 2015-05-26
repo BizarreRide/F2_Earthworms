@@ -119,6 +119,8 @@ summary(anc.best)
 
 # anova
 summary(aov(anc.best))
+
+write.csv(summary(anc.best)$coefficients, "Analysis/OutputTables/AncBestCoef.csv")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 

@@ -134,6 +134,9 @@ summary(endad.bm.best)
 
 # anova
 summary(aov(endad.bm.best))
+
+write.csv(summary(endad.bm.best)$coefficients, "Analysis/OutputTables/EndadBmBestCoef.csv")
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
