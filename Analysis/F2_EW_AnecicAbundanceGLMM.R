@@ -300,7 +300,6 @@ anc.pred$age_class <- plyr::revalue(anc.td$age_class,c("A_Cm"="Cm","B_Sp_young" 
 # Reverse scaling of covariate
 anc.pred$ats1 <- anc.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
 
-
 predfig.anc2 <- ggplot(anc.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam2)) + 
   geom_point() +
   #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
@@ -313,6 +312,22 @@ predfig.anc2 <- ggplot(anc.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ym
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.anc2
 # ggsave(predfig.anc2,filename="Analysis/Figures/Figure3_AncPred2Glmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+
+# Averaged T30(surface) response
+anc.pred2 <- aggregate(cbind(fit,lwr, upr) ~ ats1, anc.pred, mean)
+colnames(anc.pred2)[2:4] <- c("fit","lwr","upr")
+
+predfig.anc3 <- ggplot(anc.pred2, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_point() +
+  geom_line() +
+  #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
+  geom_errorbar(position = position_dodge(1),width=0.15, size=0.15) + 
+  geom_hline(xintercept = 1, size=0.15) +
+  ylab("Anecic Abundance Ind./m²") +
+  xlab(expression(paste("T3",0[surface]))) +
+  mytheme +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
+predfig.anc3
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Coefficients and Statistics ####
