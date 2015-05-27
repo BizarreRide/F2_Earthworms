@@ -38,8 +38,9 @@ anc.raw <-  ggplot(data1.rf[data1.rf$sfg=="anc",], aes(x=age_class, y=abc.mean, 
               theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
                     legend.title=element_text(size=10),
                     legend.text=element_text(size=10),
-                    legend.position=c(0.1,0.92))
+                    legend.position=c(0.2,0.92))
 anc.raw
+#ggsave(anc.raw, filename="Analysis/Figures/Figure4_AncRaw.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 

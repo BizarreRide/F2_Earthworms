@@ -42,18 +42,19 @@ endad.bm.raw <- ggplot(data1.rf[data1.rf$sfg.bm=="endad.bm",], aes(x=age_class, 
         legend.position=c(0.18,0.68))
 
 endad.bm.raw
+# ggsave(endad.bm.raw, filename="Analysis/Figures/Figure4_EndadBmRaw.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Assess variability in random effects ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Variability within sites
-boxplot(endad.bm ~ field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm Biomass")
+boxplot(endad.bm ~ field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="endogeic earthworm Biomass")
 
 # variability within sampling campaigns
-boxplot(endad.bm ~ samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm Biomass")
+boxplot(endad.bm ~ samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="endogeic earthworm Biomass")
 
 # variability within sites and sampling campaigns
-boxplot(endad.bm ~ field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm biomass")
+boxplot(endad.bm ~ field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="endogeic earthworm biomass")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -283,13 +284,13 @@ predfig.endad.bm1 <- ggplot(endad.bm.pred, aes(x = age_class, y = exp(fit), ymin
   ylab("Anecic Biomass [g]") +
   xlab("Age Class") +
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
-  scale_y_log10() +
+  #scale_y_log10() +
   scale_y_continuous( breaks=pretty_breaks()) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.endad.bm1
 
-#ggsave(predfig.anc1,filename="Analysis/Figures/Figure3_AncPredGlmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+#ggsave(predfig.endad.bm1,filename="Analysis/Figures/Figure3_EndadBmPredGlmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 
 # Prediction plots for average temperature! ####
 endad.bm.td = expand.grid(age_class=unique(data$age_class),
@@ -322,18 +323,18 @@ endad.bm.pred$prec1 <- endad.bm.pred$scl.prec1* sd(data$prec1) + mean(data$prec1
 endad.bm.pred$mc <- endad.bm.pred$scl.mc* sd(data$mc) + mean(data$mc)
 endad.bm.pred$pH <- endad.bm.pred$scl.pH* sd(data$pH) + mean(data$pH)
 
-predfig.anc2 <- ggplot(endad.bm.pred, aes(x = pH, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam)) + 
+predfig.endad.bm2 <- ggplot(endad.bm.pred, aes(x = pH, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam)) + 
   geom_point() +
   #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
   geom_errorbar(position = position_dodge(1),width=0.15, size=0.15) + 
   facet_grid(mc~age_class) +
   geom_hline(xintercept = 1, size=0.15) +
-  ylab("Anecic Biomass [g]") +
+  ylab("Biomass [g]") +
   xlab("Gravimetric Soil Water Content") +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
-predfig.anc2
-# ggsave(predfig.anc2,filename="Analysis/Figures/Figure3_AncPred2Glmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+predfig.endad.bm2
+# ggsave(predfig.endad.bm2,filename="Analysis/Figures/Figure3_AncPred2Glmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
