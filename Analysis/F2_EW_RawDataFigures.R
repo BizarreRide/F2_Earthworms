@@ -76,7 +76,7 @@ rfig1.abc1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_clas
             geom_errorbar(aes(ymin=abc.mean-1.96*abc.se, ymax=abc.mean+1.96*abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
             facet_grid(.~samcam) +
             xlab("Age Class") + 
-            ylab("Abundance") +
+            ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
             ylim(-10,max(data1.rf$abc.mean+data1.rf$abc.se)) +
             labs(fill="Functional Group") +
             scale_fill_grey(labels=c("anecic juvenile","anecic adult","endogeic juvenile", "endogeic adult","epigeic", "total")) +
@@ -87,9 +87,9 @@ rfig1.abc1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_clas
             theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
                   legend.title=element_text(size=6),
                   legend.text=element_text(size=7),
-                  legend.position=c(0.18,0.68))
+                  legend.position=c(0.12,0.82))
 
-#ggsave(rfig1.abc1,filename="Analysis/Figures/Figure1.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+# ggsave(rfig1.abc1,filename="Analysis/Figures/Figure2.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
 
 
 # Biomass
@@ -101,7 +101,7 @@ rfig2.bm1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class
             geom_errorbar(aes(ymin=bm.mean-1.96*bm.se, ymax=bm.mean+1.96*bm.se), position=position_dodge(0.9),width=0.15, size=0.15) +
             facet_grid(.~samcam) +
             xlab("Age Class") + 
-            ylab("Biomass") +
+            ylab(expression(paste("Biomass \u00B1 CI ","[g x ",0.25,m^-2," ]"))) +
             ylim(-10,max(data1.rf$bm.mean+data1.rf$bm.se)) +
             labs(fill="Functional Group") +
             scale_fill_grey(labels=c("anecic juvenile","anecic adult","endogeic juvenile", "endogeic adult","epigeic", "total")) +
@@ -112,9 +112,9 @@ rfig2.bm1 <- ggplot(data1.rf[data1.rf$sfg!=c("endad","ancad"),], aes(x=age_class
             theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
                   legend.title=element_text(size=6),
                   legend.text=element_text(size=7),
-                  legend.position=c(0.18,0.68))
+                  legend.position=c(0.12,0.82))
 
-#ggsave(rfig2.bm1,filename="Analysis/Figures/Figure2.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+#ggsave(rfig2.bm1,filename="Analysis/Figures/Figure3.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
 
 
 ## Version 2 with "2nd Order" data ####
