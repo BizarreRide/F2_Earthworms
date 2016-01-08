@@ -20,7 +20,7 @@ mytheme =
         strip.background = element_rect(color = "grey", fill="black", size=0.1),
         strip.text.x = element_text(size=8,  colour="white"),
         strip.text.y = element_text(size=8,  colour="white"),
-        panel.border = element_rect(colour="black", size=0.2, fill=NA),        
+        panel.border = element_rect(colour="black", size=0.3, fill=NA),        
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.margin = unit(0, "lines"),

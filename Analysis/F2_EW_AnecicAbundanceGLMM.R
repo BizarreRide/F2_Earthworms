@@ -27,7 +27,7 @@ anc.raw <-  ggplot(data1.rf[data1.rf$sfg=="anc",], aes(x=age_class, y=abc.mean, 
               geom_errorbar(aes(ymin=abc.mean-1.96*abc.se, ymax=abc.mean+1.96*abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
               facet_grid(.~samcam) +
               xlab("Age Class") + 
-              ylab("Abundance") +
+              ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
               #ylim(-10,max(data1.rf$abc.mean+data1.rf$abc.se)) +
               labs(fill="Functional Group") +
               scale_fill_grey(labels=c("anecic total")) +
@@ -38,8 +38,9 @@ anc.raw <-  ggplot(data1.rf[data1.rf$sfg=="anc",], aes(x=age_class, y=abc.mean, 
               theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
                     legend.title=element_text(size=10),
                     legend.text=element_text(size=10),
-                    legend.position=c(0.1,0.92))
+                    legend.position=c(0.12,0.92))
 anc.raw
+#ggsave(anc.raw, filename="Analysis/Figures/Figure4_AncRaw.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -108,8 +109,9 @@ write.csv(data.frame(anc.avgmod2.d4$msTable), "Analysis/OutputTables/AncSubsetMo
 # with both glmer() and glmmadmb():
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# anc.best2 <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+#anc.best2 <- glmmadmb(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID),data=data,family="poisson")
+#anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+anc.best <- glmer(anc ~ age_class*samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID)  ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 
 # **The best model includes an Interaction term!!!**
 
@@ -119,6 +121,8 @@ summary(anc.best)
 
 # anova
 summary(aov(anc.best))
+
+write.csv(summary(anc.best)$coefficients, "Analysis/OutputTables/AncBestCoef.csv")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -126,8 +130,11 @@ summary(aov(anc.best))
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Confidence Intervals ####
-confint(anc.best)
+anc.confint <- confint(anc.best)
+#anc.confint2 <- confint(anc.best2)
 coefplot2(anc.best)
+#write.csv(data.frame(anc.confint2), "Analysis/OutputTables/AncConfint.csv")
+
 
 # Check Model Assumptions ####
 
@@ -230,8 +237,8 @@ par(lo)
 anc.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
                      scl.ats1 = mean(data$scl.ats1),
-                     scl.prec1 = mean(data$scl.prec1),
-                     area = 1)
+                     scl.prec1 = mean(data$scl.prec1))
+                     
 
 
 ## calculate confidence intervals for predictions from test dataset
@@ -260,22 +267,22 @@ predfig.anc1 <- ggplot(anc.pred, aes(x = age_class, y = exp(fit), ymin = exp(lwr
   geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
   facet_grid(.~samcam2) +
   geom_hline(xintercept = 1, size=0.15) +
-  ylab("Anecic Abundance Ind./m²") +
+  ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
   xlab("Age Class") +
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
-  scale_y_continuous(limits=c(0,110)) +
+  scale_y_continuous(limits=c(0,25)) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.anc1
 
-#ggsave(predfig.anc1,filename="Analysis/Figures/Figure3_AncPredGlmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+ggsave(predfig.anc1,filename="Analysis/Figures/Figure4_AncPredGlmer.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
 
 # Prediction plots for average temperature! ####
 anc.td = expand.grid(age_class=unique(data$age_class),
                      samcam = unique(data$samcam),               
                      scl.prec1 = mean(data$scl.prec1),
                      scl.ats1 = seq(min(data$scl.ats1),max(data$scl.ats1), by=0.2),
-                     area = 1)
+                     area = 0.25)
 
 
 ## calculate confidence intervals for predictions from test dataset
@@ -298,19 +305,34 @@ anc.pred$age_class <- plyr::revalue(anc.td$age_class,c("A_Cm"="Cm","B_Sp_young" 
 # Reverse scaling of covariate
 anc.pred$ats1 <- anc.pred$scl.ats1* sd(data$ats1) + mean(data$ats1)
 
-
 predfig.anc2 <- ggplot(anc.pred, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr), col=samcam2)) + 
   geom_point() +
   #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
   geom_errorbar(position = position_dodge(1),width=0.15, size=0.15) + 
   facet_grid(.~age_class) +
   geom_hline(xintercept = 1, size=0.15) +
-  ylab("Anecic Abundance Ind./m²") +
+  ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
   xlab(expression(paste("T3",0[surface]))) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.anc2
-# ggsave(predfig.anc2,filename="Analysis/Figures/Figure3_AncPred2Glmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+# ggsave(predfig.anc2,filename="Analysis/Figures/Figure3_AncPred2Glmer.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
+
+# Averaged T30(surface) response
+anc.pred2 <- aggregate(cbind(fit,lwr, upr) ~ ats1, anc.pred, mean)
+colnames(anc.pred2)[2:4] <- c("fit","lwr","upr")
+
+predfig.anc3 <- ggplot(anc.pred2, aes(x = ats1, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
+  geom_point() +
+  geom_line() +
+  #geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
+  geom_errorbar(position = position_dodge(1),width=0.15, size=0.15) + 
+  geom_hline(xintercept = 1, size=0.15) +
+  ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
+  xlab(expression(paste("T3",0[surface]))) +
+  mytheme +
+  theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
+predfig.anc3
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Coefficients and Statistics ####

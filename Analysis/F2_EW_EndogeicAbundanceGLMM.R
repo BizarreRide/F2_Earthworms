@@ -20,7 +20,7 @@ source("Data/GatherSource/CovariateStandardization.R")
 # !!!! requires data from raw figure plots
 source("Analysis/F2_EW_RawDataFigures.R")
 
-endad.raw <-  ggplot(data1.rf[data1.rf$sfg=="endad",], aes(x=age_class, y=abc.mean, fill=sfg)) +  
+endad.raw <-  ggplot(data1.rf[data1.rf$sfg=="endad",], aes(x=age_class, y=abc.mean, fill=sfg)) +   
               geom_bar(stat="identity", position="dodge") + 
               geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
               #geom_bar(stat="identity", position="dodge", data=data1.rf2[data1.rf2$sfg!=c("anc","end"),]) +
@@ -28,31 +28,32 @@ endad.raw <-  ggplot(data1.rf[data1.rf$sfg=="endad",], aes(x=age_class, y=abc.me
               geom_errorbar(aes(ymin=abc.mean-1.96*abc.se, ymax=abc.mean+1.96*abc.se), position=position_dodge(0.9),width=0.15, size=0.15) +
               facet_grid(.~samcam) +
               xlab("Age Class") + 
-              ylab("Abundance") +
+              ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
               #ylim(-10,max(data1.rf$abc.mean+data1.rf$abc.se)) +
               labs(fill="Functional Group") +
-              scale_fill_grey(labels=c("anecic total")) +
+              scale_fill_grey(labels=c("endogeic adults")) +
               scale_y_continuous(breaks=pretty_breaks(n=10)) +
-       Shrinkage       scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
+              scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
               mytheme +
               guides(fill=guide_legend(keywidth=0.5, keyheight=0.5)) +
               theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
                     legend.title=element_text(size=10),
                     legend.text=element_text(size=10),
-                    legend.position=c(0.1,0.92))
+                    legend.position=c(0.12,0.92))
 endad.raw
+#ggsave(endad.raw, filename="Analysis/Figures/Figure5_EndadRaw.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Assess variability in random effects ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Variability within sites
-boxplot(endad~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="anecic earthworm abundance")
+boxplot(endad~field.ID, data, col="grey", main="Variability within sites", xlab="sites orderd in decreasing age", ylab="endogeic earthworm abundance")
 
 # variability within sampling campaigns
-boxplot(endad~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="anecic earthworm abundance")
+boxplot(endad~samcam, data,col="grey", main="Variability within sampling campaigns", xlab="seasons:\n autumn2012, spring2013, autumn2013", ylab="endogeic earthworm abundance")
 
 # variability within sites and sampling campaigns
-boxplot(endad~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="anecic earthworm abundance")
+boxplot(endad~field.ID+samcam, data, las=2, col="grey", main="Variability within sites \n differing at sampling campaigns", xlab="field+seasons", ylab="endogeic earthworm abundance")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -110,8 +111,9 @@ write.csv(data.frame(endad.avgmod1.d4$msTable), "Analysis/OutputTables/EndadSubs
 # with both glmer() and glmmadmb():
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# endad.best2 <- glmmadmb(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) + offset(log(area)) ,data=data,family="poisson")
-endad.best <- glmer(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+#endad.best2 <- glmmadmb(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) ,data=data,family="poisson")
+#endad.best <- glmer(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID) + offset(log(area)) ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+endad.best <- glmer(endad ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID)  ,data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 
 # **The best model includes an Interaction term!!!**
 
@@ -121,6 +123,8 @@ summary(endad.best)
 
 # anova
 summary(aov(endad.best))
+
+write.csv(summary(endad.best)$coefficients, "Analysis/OutputTables/EndadBestCoef.csv")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -128,8 +132,10 @@ summary(aov(endad.best))
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Confidence Intervals ####
-confint(endad.best)
+endad.confint <- confint(endad.best)
+#endad.confint2 <- confint(endad.best2)
 coefplot2(endad.best)
+#write.csv(data.frame(endad.confint2), "Analysis/OutputTables/EndadConfint.csv")
 
 # Check Model Assumptions ####
 
@@ -229,13 +235,12 @@ par(lo)
 # Predictionplots for Age Class x SamCam ####
 
 # create test data set with all covariates IN the model
-# to predict for age_class only, take the mean of all continous covariates
 endad.td = expand.grid(age_class=unique(data$age_class),
                        samcam = unique(data$samcam),               
                        scl.prec1 = mean(data$scl.prec1),
                        scl.mc = mean(data$scl.mc),
-                       scl.pH = mean(data$scl.pH),
-                       area = 1)
+                       scl.pH = mean(data$scl.pH))
+                       #area = 0.25)
 
 
 ## calculate confidence intervals for predictions from test dataset
@@ -267,13 +272,15 @@ predfig.endad1 <- ggplot(endad.pred, aes(x = age_class, y = exp(fit), ymin = exp
   geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
   facet_grid(.~samcam2) +
   geom_hline(xintercept = 1, size=0.15) +
-  ylab("Anecic Abundance Ind./m²") +
+  ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
   xlab("Age Class") +
   scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
+  scale_y_continuous(limits=c(0,25)) +
   mytheme +
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1))
 predfig.endad1
-#ggsave(predfig.endad1,filename="Analysis/Figures/Figure4_EndadPredGlmer.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+
+#ggsave(predfig.endad1,filename="Analysis/Figures/Figure5_EndadPredGlmer.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
 
 # Prediction plots for average temperature! ####
 endad.td = expand.grid(age_class=unique(data$age_class),
