@@ -20,19 +20,19 @@ groups <- 3 # Nr of groups (e.g. levels of interaction-factor 2) to draw compari
 
 # create empty contrast matrix
 x <- groups*choose(n,k) # row number for matrix, i.e. all comparisons that should be drawn
-y <-  length(levels(data$ia.acl.smc))+2 # column number, e.g. all levels of the interaction factor
+y <-  length(levels(dt.exp$interaction))+2 # column number, e.g. all levels of the interaction factor
 cm1 <- matrix(0,x,y) # empty contrast matrix with two mor columns for pairwise factor combinations
 
 # Fill in pairwise factor combinations, [first create interaction factor!]
 # Use as ID of all combinations of interest
 for(i in 1:2) {
-  ID <- rbind(t(combn(levels(data$ia.acl.smc)[(n-(n-1)):n],k)),
-             t(combn(levels(data$ia.acl.smc)[(2*n-(n-1)):(2*n)],k)),
-             t(combn(levels(data$ia.acl.smc)[(3*n-(n-1)):(3*n)],k)))
+  ID <- rbind(t(combn(levels(dt.exp$interaction)[(n-(n-1)):n],k)),
+             t(combn(levels(dt.exp$interaction)[(2*n-(n-1)):(2*n)],k)),
+             t(combn(levels(dt.exp$interaction)[(3*n-(n-1)):(3*n)],k)))
   cm1[,i] <- ID[,i]
 }
-cm1 <- data.frame(cm1, stringsAsFactors=FALSE) # turn into data frame
-colnames(cm1)[(1+2):(3*n+2)] <- levels(data$ia.acl.smc) # fill in column names
+cm1 <- data.frame(cm1, stringsAsFactors=FALSE) # turn into dt.exp frame
+colnames(cm1)[(1+2):(3*n+2)] <- levels(dt.exp$interaction) # fill in column names
 
 # write 1 or -1 if colnames match the names of ID-columns 1 or 2
 for (i in 3:17) {
@@ -50,3 +50,5 @@ class(cm1) <- "numeric"
 
 rm(k,n,groups,i,j,x,y,ID)
 
+#i=1
+#levels(dt.exp$interaction)[(i*n-(n-1)):(i*n)]
