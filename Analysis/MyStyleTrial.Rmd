@@ -1,0 +1,15 @@
+---
+title: "Test"
+date: "24 October 2015"
+output: 
+  html_document:
+    css: mystyle.css
+---
+
+```{r, results='asis'}
+
+dset1 <- head(ToothGrowth)
+knitr::kable(dset1, format = "html")
+```
+
+writeLines("td, th { padding : 6px } th { background-color : brown ; color : white; border : 1px solid white; } td { color : brown ; border : 1px solid brown }", con = "mystyle.css")

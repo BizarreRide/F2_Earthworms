@@ -1,0 +1,365 @@
+---
+title: "Space for Time Validation - Ms. Ref. No.: JBB-D-15-01116"
+author:
+  - name: Quentin Schorpp
+    email: quentin.schorpp@ti.bund.de
+date: "`r Sys.Date()`"
+output: 
+      html_document:
+          toc: true
+          toc_depth: 3
+          number_sections: true
+          fig_caption: true
+          theme: cerulean
+          highlight: haddock
+          css: mystyle.css
+      
+---
+
+          
+```{r SetGlobalOptions, include=FALSE}
+knitr::opts_chunk$set(fig.align="center",
+                      message=FALSE,
+                      error=FALSE,
+                      warning=FALSE,
+                      echo=FALSE)
+knitr::opts_knit$set(root.dir = "C:/Users/Quentin/Documents/git_repositories/F2_Earthworms")
+
+options(scipen=1, digits=2)
+set.seed(1234)
+```
+
+
+# Prolog
+The manuscript entitled "Earthworm functional groups respond to the perennial energy cropping system of the cup plant (*Silphium perfoliatum L.*)" was submitted to Biomass and Bioenergy (Elsevier). After Revisions the editor decided to accept the manuscript after major revisions have been taken into acount.
+This document aims to take a stand on the comments of the third reviewer, who had massive concerns about the statistical methodology:
+
+## General Comments of Review#3
+The manuscript addresses an important question related to permanent cultures for bioenergy production: What is the effect on biological activity and biodiversity? Earthworms as key organisms have been investigated in a space-for-time approach.
+**The manuscript suffers from an extensive application of general linear modeling in the data anlysis with a heterogeneous and probably biased data set**. Before drawing conclusions about temporal developments from the study, **the validity of the space-for-time approach has to be examined for the set of investigated sites**. The space-for-time approach requires, that the sites compared are very similar in their basic (time invariant) soil properties, so that observed differences can be attributed to the temporal variable under focus.
+The site descriptors as well as the earthworm numbers given in table A1 point to **more than marginal differences between the sites in soil type, soil texture, and chemistry**. Therefore clustering the Bray Curtis index on composite means of all sites per age class and maize seems inappropriate - also with respect to the low number of earthworm species (9). An ordinated table or an ordination diagram of all sites (with sampling campaigns summed) would be more illustrative and convincing. **The influence of length of Silphie cultivation period should be analyzed for each soil type separately**. Afterwards it can be tested if there is a common pattern.
+Significance testing should be done by calculating an error probability with an appropriate variance analysis / test for multiple samples.
+
+
+# Methods
+In the following I'm going to compute a multivariate ordination of physico-chemical properties of the investigated fields. The Ordination will be either NMDS or PCA. CA and DCA is probably not adequate, since my data are no counts:
+
+> Note that the data submitted to CA must be frequencies or frequency-like, 
+> dimensionally homogeneous and non-negative; that is the case of species counts 
+> or presence-absence data (Borcart, Gillet & Legendre, "Numerical Ecology with R", 2011)
+
+## Data Inspection
+### Subset the data
+```{r LoadData, results = "hide", echo= -c(1:9,25:34), cache=TRUE}
+# Load Data ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+source("Data/GatherSource/F2_EW_MakeLikeFile.R")
+source("Data/GatherSource/Functions/evplot.R")
+source("Data/GatherSource/Functions/cleanplot.pca.R")
+
+# Data processing ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Subsetting 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+## Response variables are the soil physico-chemical properties of the plots
+df.rsp1 <- data[,c("clay","sand","pH","mc","cn")]  # All data - 4 replicates per plot, 
+df.rsp2 <- data2[,c("clay","sand","pH","mc","cn")] # 3 sampling campaigns - summed over replicates
+df.rsp3 <- data3[,c("clay","sand","pH","mc","cn")] # summed sampling campaigns
+
+## Explanatory variable are abundances of the functional groups
+df.exp1 <- data[,c("ancad", "endad", "epi")]
+df.exp2 <- data2[,c("ancad", "endad", "epi")]
+df.exp3 <- data3[,c("ancad", "endad", "epi")]
+
+df.groups1 <- data[,c("age_class","samcam","field.ID", "hole")]
+df.groups2 <- data2[,c("age_class","samcam","field.ID")]
+df.groups3 <- data3[,c("age_class","field.ID")]
+
+# Plot Aid
+## Background color of symbols
+p_bg <- grey.colors(5, start = 0.8, end = 0, gamma = 2.2, alpha = NULL)
+p_bg1 <- rep(rep(p_bg, each=12),3)
+p_bg3 <- c(rep(p_bg, each=3),rep(p_bg[5],3))
+## shape of symbols
+p_shp1 <- c(rep(rep(c(24,25,23,22,21), each=12),3))
+p_shp3 <- c(rep(c(24,25,23,22,21), each=3),rep(21,3))
+p_shp.legend <- c(24,25,23,22,21)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+```
+
+### Transform the data
+```{r Data Transformation, echo = T}
+# Transformations
+df.rsp3.log <- log(df.rsp3)                   # log transformation
+df.rsp3.z <- scale(df.rsp3.log)               # z transformation
+minShift <- function(x) {x + abs(min(x))}
+df.rsp3.z <- apply(df.rsp3.z, 2, minShift)    # eliminate negative values
+```
+
+### Test for multivariate Normality
+```{r Multivariate Normality}
+library(mvnormtest)
+mnorm.rsp3 <- t(df.rsp3.z)
+mshapiro.test(mnorm.rsp3) # No multiple NV. ALso no multivariate normality?
+
+library(MVN)
+mardiaTest(df.rsp3)
+hzTest(df.rsp3)        # Data are not multivariate normal!
+```
+
+> Doreen: Since the data is not multivariate normal, i should probably prefer NMDS over PCA?
+
+## nMDS
+```{r NonMetricMultiDimensioanalScaling, echo=c(2,3), results="hide"}
+library(vegan)
+nmds.rsp3 <- metaMDS(df.rsp3,"euc", k=2, trymax=1000)
+nmds.rsp3 <- metaMDS(df.rsp3,"euc", k=2, trymax=1000, previous.best = nmds.rsp3)
+```
+```{r}
+nmds.rsp3
+```
+As a rule of thumb, an nMDS ordination with a stress value around or above 0.2 is deemed suspect and a stress value approaching 0.3 indicates that the ordination is arbitrary. Stress values equal to or below 0.1 are considered fair, while values equal to or below 0.05 indicate good fit. 
+
+### Prepare overlay of explanatory variables
+```{r EnvOverlay, echo=1, results="hide"}
+ef <- envfit(nmds.rsp3, df.exp3, perm = 1000)
+
+```
+```{r}
+ef
+```
+
+> Doreen, could you help me with the interpretation of this output? Am I right to say: "*None of the functional earthworm groups is significantly related to one of the two nMDS axes, and hence to the soil physico-chemical properties*" ? 
+
+### Validate NMDS
+```{r NMDSValidation,}
+par(mfrow=c(1,2))
+stressplot(nmds.rsp3, main = "Shepard plot")
+gof <- goodness(nmds.rsp3)
+p.nmds.rsp3.gof <- plot(nmds.rsp3, type="t", main = "Goodness of fit") 
+points(nmds.rsp3, display="sites", cex=2*gof/mean(gof))
+#screeplot()
+```
+
+The Shepard diagram compares the distances among objects in the ordination plot with the original distances. The goodness-of-fit of the ordination is measured as the R[2] of either a linear or a non-linear regression of nMDS distances on the original ones. In this case the fit is almost 1 and regarded to be good. However, the Bubble-Plot shows poorly fitted sites with larger bubbles. We see that some plots with increased sand or clay content fit worse.
+
+### Final NMDS plot
+```{r Final NMDS plot}
+# Rotate NMDS plot
+nmds.rsp3.rtt <- with(df.rsp3, MDSrotate(nmds.rsp3,clay))
+
+# Final NMDS plot
+a = 7.3
+b = 7.3
+c = 9
+d = 9.2
+
+# Version 1 mit ordiplot()
+par(mfrow=c(1,2),
+    mar=c(2,2,2,0.2),
+    oma=c(0,0,0,0),
+    mgp=c(01,0.2,0),
+    cex.lab=0.5,
+    cex.axis=0.5,
+    cex.main=0.5,
+    lwd=0.3,
+    tcl=NA,
+    pin=c(width=a/2.54, height=b/2.54))
+
+
+p.nmds.rsp3.rtt <- plot(nmds.rsp3.rtt, type="n", xlim=c(-0.15, 0.15), main=paste("NMDS plot with arrows for species(soil) scores \n rotated for clay"))
+points(nmds.rsp3.rtt, display="sites", pch = p_shp3, bg = p_bg3)
+text(nmds.rsp3.rtt, display="species")
+spe.sc2 <- scores(p.nmds.rsp3.rtt, display="sp", choices=c(1,2))
+arrows(0, 0, spe.sc2[,1], spe.sc2[,2], length=0.07, angle=20, col="black", lty=2)
+#plot(envfit(p.nmds.rsp3.rtt, df.rsp3), add = TRUE, col="black") 
+plot(envfit(p.nmds.rsp3.rtt, df.exp3), add = TRUE, col="grey", lty = 2) 
+legend("bottomleft", legend=c("Sp_O", "SP_I2", "SP_I1", "Sp_Y", "Cm"), text.col="black",  cex=0.54, pt.cex=0.64, pch=p_shp.legend, pt.bg=p_bg) # 
+text(0.1, 0.2, paste("Stress = ", round(nmds.rsp3.rtt$stress,3)), cex=0.54)
+
+p.nmds.rsp3.rtt <- plot(nmds.rsp3.rtt, type="n", xlim=c(-0.15, 0.15), main=paste("NMDS plot with Vectorfit for soil properties \n rotated for clay"))
+points(nmds.rsp3.rtt, display="sites", pch = p_shp3, bg = p_bg3)
+#text(nmds.rsp3.rtt, display="species")
+# spe.sc2 <- scores(p.nmds.rsp3.rtt, display="sp", choices=c(1:p))
+# arrows(0, 0, spe.sc2[,1], spe.sc2[,2], length=0.07, angle=20, col="black", lty=2)
+plot(envfit(p.nmds.rsp3.rtt, df.rsp3), add = TRUE, col="black") 
+plot(envfit(p.nmds.rsp3.rtt, df.exp3), add = TRUE, col="grey") 
+legend("bottomleft", legend=c("Sp_O", "SP_I2", "SP_I1", "Sp_Y", "Cm"), text.col="black",  cex=0.54, pt.cex=0.64, pch=p_shp.legend, pt.bg=p_bg) # 
+text(0.1, 0.2, paste("Stress = ", round(nmds.rsp3.rtt$stress,3)), cex=0.54)
+```
+
+##### Vector legend  
+
+Earthworm functional groups:  || Environmental:
+:-------------------------------------|---|:-----------------------------------------------------
+ancad - anecic adults  || mc - gravimetric moisture content
+endad - endogeic adults  || pH = pH
+epi - epigeic earthworms  || clay = clay content [%]
+:|| sand = sand content [%]
+:|| cn = C:N ratio
+
+
+#### Vector overlay:
+The arrows point to the direction of most rapid change in the the
+environmental  variable.   Often  this  is  called  the  direction  of  the
+gradient. The length of the arrow is proportional to the correlation between
+ordination  and  environmental  variable.   Often  this  is  called  the
+strength of the gradient.
+
+There are obvious differences in the ordinations according to the presentation of the soil properties.
+The arrows for clay and sand, for example, differ in both their length and their direction. 
+
+The "species scores" version (lefthand) uses 
+```{r, eval = F, echo =T}
+spe.sc2 <- scores(nMDS, display="sp", choices=c(1,2))
+arrows(0, 0, spe.sc2[,1], spe.sc2[,2])
+```
+While, the vector fit version (righthand) uses:
+```{r, eval = F, echo =T}
+plot(envfit(nMDS, df.rsp3), add = TRUE, col="black")
+```
+to show the environmental vectors
+
+The rotation of the nMDS plot seems to be performed according to the vectorfit version.
+
+> Doreen: I'm not sure if i should overlay vectors of the environmental varaibles, that were used for cacluclation of the underlying dissimilarity matrix of the ordination. Isn't that a circular reasoning?
+
+### Summary nMDS
+The nMDS ordination seems valid, The R[2] values are high in both the linear and the non-linear fit and the Stress has a value around 1, which is generally regarded as good fit.
+My impression is, that there are indeed differences between the plots according to heterogeneity of soil physico-chemical properties. However, it is not possible to allocate any of the age_classes to a distinct and unique set of soil properties. Furthermore, it seems that the functional groups do not show a significant relationship to the soil physico-chemical properties.
+
+
+## PCA
+
+```{r, echo = T}
+pca.rsp3 <- rda(df.rsp3, scale=T)
+summary(pca.rsp3, display = NULL)
+
+ef <- envfit(pca.rsp3, df.exp3, perm=999);ef
+
+```
+
+I choosed to scale the environmental soil variables prior to PCA, 
+since they were all measured on different scales
+
+Again, the axis show no significant relationship with earthworm functional groups.
+
+> Doreen: is it a good idea to calculate envfit() with PCA scores? I did not see any example of this. 
+
+### PCA validation
+```{r}
+ev <- pca.rsp3$CA$eig
+evplot(ev)
+screeplot(pca.rsp3, bstick=T, type="lines")
+BiodiversityR::PCAsignificance(pca.rsp3, axes=4)
+```
+
+Ordination with 2 axes should be sufficient.
+
+### Final PCA plot
+```{r}
+# Final PCA plot ####
+
+a = 7.3
+b = 7.3
+c = 9
+d = 9.2
+
+
+# Version 1 mit ordiplot()
+par(mfrow=c(1,2),
+    mar=c(2,2,2,0.2),
+    oma=c(0,0,0,0),
+    mgp=c(01,0.2,0),
+    cex.lab=0.5,
+    cex.axis=0.5,
+    cex.main=0.5,
+    lwd=0.3,
+    tcl=NA,
+    pin=c(width=a/2.54, height=b/2.54))
+
+
+library(BiodiversityR)
+plot1 <- ordiplot(pca.rsp3, choices=c(1,2),type="n", scaling=1, display=c("wa","sp"), main="PCA -Scaling 1") #, display=c("sp","lc","cn")
+ordiequilibriumcircle(pca.rsp3,plot1)
+points(plot1, "sites", pch=p_shp3, bg=p_bg3, cex=1.0)
+text(plot1,"sp", labels=names(df.rsp3), cex=1.0)
+
+plot2 <- ordiplot(pca.rsp3,choices=c(1,2), type="n", scaling=2, display=c("wa","sp"), main="PCA - Scaling 2")
+points(plot2, "sites", pch=p_shp3, bg=p_bg3, cex=1.0)
+points(plot2, "species", pch=4, cex=1.0)
+legend("topleft", legend=c("Sp_O", "SP_I2", "SP_I1", "Sp_Y", "Cm"), text.col="black", pch=p_shp.legend, pt.bg=p_bg, cex=0.54, pt.cex=0.64, inset = c(-0.22,0))
+text(plot2,"sp", labels=names(df.rsp3), cex=1.0)
+plot(ef, add = TRUE, col="grey") 
+```
+
+### Summary PCA
+
+PCA is probably valid, because in its applications in ecology, PCA is not very sensitive to departure from multinormality (Brocart,..). The ordinations show less influence of soil texture variables on age classes than the nMDS ordination. A relationship between age_classes and soil physico-chemical porperties seems even more unlikely. However, I'm not sure about the Vector overlay of eearthworm variables. I think if i'd like to do it, i should use RDA. However I'm not sure if it is necessary at all. The Reviewer only wrote about a Pre-Inspection before doing the "real" analysis with consideration of earthworm varaibles.
+
+# My Answer to the Reviewer:
+
+GLMM is recently the most powerful tool to analyze data with inherent correlation strucutures, like repeated measurements, spatial dependencies or nestedness. Soil properties had been included in the global model but the analysis did not reveal an stronger influence on the data of earthworm functional groups than age class and sampling campaing, i.e. the temporal factors. Using multivaraite methods would have major drawbacks due to the loss of large amounts of crucial information on longterm effects by averaging over sampling campaigns and field replicates. The application of conditioned multivaraite analysis was not able to address the pseudoreplication on subject (i.e. field) level. It would not have been possible to test the influence of age_class, simply due to the fact, that not each field was assigned to each of the age class categories during our study. Impelementing condition(field.ID) in partial redundancy analysis wipes out the age class effect. 
+Although, in our opinion the inclusion of soil properties in the global model formulation is sufficient to account for interfering effects of soil properties with age class effects, we agree to include a validation of the space for time approach by using multivariate ordination of field physico-chemical properties. 
+
+Regarding post-hoc multicomparisons we also agree that the visual comparison of confidence intervals  probably suffers too much from subjective differences in interpretation. We performed post-hoc tests using the lsmeans package in R. Detailed tables can be found in the supplementary material.
+
+
+
+# Trouble shooting
+
+> Doreen: It is very hard for me to decide which PCA-scaling definitions are to choose!! Do you have some issues on the many different ways to plot the ordination?
+
+```{r, echo = T}
+pca1.rsp3 <- rda(df.rsp3, scale=F); pca1.rsp3 
+# Inertia is the sum of all species variances.  The eigenvalues sum up to total inertia.  In other words,  they  each explain a  certain  proportion  of  total  variance.
+```
+
+```{r, echo = T}
+pca2.rsp3 <- rda(df.rsp3, scale=T); pca2.rsp3 
+# Now inertia is correlation, and the correlation of a variable with itself is one.  Thus the total inertia is equal to the number of variables (species)
+```
+
+```{r}
+par(mfrow=c(2,3))
+p1 <- plot(pca1.rsp3, scaling = -1, main="scale=F, scaling=-1")
+p1 <- plot(pca1.rsp3, scaling = -2, main="scale=F, scaling=-2")
+p1 <- plot(pca1.rsp3, scaling = -3, main="scale=F, scaling=-3")
+p1 <- plot(pca1.rsp3, scaling = 1, main="scale=F, scaling=1")
+p1 <- plot(pca1.rsp3, scaling = 2, main="scale=F, scaling=2")
+p1 <- plot(pca1.rsp3, scaling = 3, main="scale=F, scaling=3")
+
+par(mfrow=c(2,3))
+p1 <- plot(pca2.rsp3, scaling = -1, main="scale=T, scaling=-1")
+p1 <- plot(pca2.rsp3, scaling = -2, main="scale=T, scaling=-2")
+p1 <- plot(pca2.rsp3, scaling = -3, main="scale=T, scaling=-3")
+p1 <- plot(pca2.rsp3, scaling = 1, main="scale=T, scaling=1")
+p1 <- plot(pca2.rsp3, scaling = 2, main="scale=T, scaling=2")
+p1 <- plot(pca2.rsp3, scaling = 3, main="scale=T, scaling=3")
+```
+
+
+
+####From the vegan tutorial:  
+For some graph we specifed scaling = -1. The  negative  values  mean  that  species
+scores are divided by the species standard deviations so that abundant and scarce species 
+will be approximately as far away from the origin.
+We already saw an example of scaling = 3 or symmetric scaling in pca.
+The other two integers mean that either species are weighted averages of
+sites (2) or sites  are  weighted  averages  of  species (1). When  we  take
+weighted  averages,  the  range  of  averages  shrinks  from  the  original  values.
+The shrinkage factor is equal to the eigenvalue of CA, which has a theoretical maximum of 1.
+
+####From Brocart, Gillet, Legendre (2011); "Numerical Ecology with R""):
+
+Scaling-1 = distance biplot: the eigenvectors are scaled to nit length. (1) *Distances among objects in the biplot are approximations of their euclidean distances in multidimensional space.*  (2) **The angles among descriptor vectors are meaningless**
+
+Scaling 2 = correlation biplot: each eigenvector is scaled to the square root of its eigenvalue. (1) **Distances among objects in the biplot are not approximations of their euclidean distances in multidimensional space.** (2) *The angles between descriptors in the biplot reflect their correlations.*
+
+#### Explanation of the Equilibrium circle:
+Its radius is equal to the sqrt(d/p), where d is the number of axes presentes in the biplot (usually d=2) and p is the number of dimensions of the PCA space (i.e. usually the number of variables of the data matrix). The radius of this circle represents the length of the vector representing  a variable that would contribute equally to all dimensions of the PCA space. Therefore, for any given pair of axes, the variables that have vectors longer than this radius make a higher contribution than  average and can be intepreted with confidence.
+
+> Doreen: In my analysis it appears very frequently, that in the *Scaling-1* biplot, which is the only biplot, that is able to show the equilibrium circle, shows the site scores crowded in the center, making distinction of the sites almost impossible. And the species scores are very far away from this crowd of sites.
+
+Powered by [Funky music](https://www.youtube.com/watch?v=uENunBP8Rfg)

@@ -62,7 +62,7 @@ mardiaTest(df.rsp1.z)
 hzTest(df.rsp1.z)        # Data are not multivariate normal!
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# Non metrix multidimensional scaling ####
+# Non metric multidimensional scaling ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Prepare overlay of explanatory variables
