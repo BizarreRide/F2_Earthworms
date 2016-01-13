@@ -42,7 +42,7 @@ endad.bm.raw <- ggplot(data1.rf[data1.rf$sfg.bm=="endad.bm",], aes(x=age_class, 
         legend.position=c(0.12,0.92))
 
 endad.bm.raw
-ggsave(endad.bm.raw, filename="Analysis/Figures/Figure7_EndadBmRaw.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
+#ggsave(endad.bm.raw, filename="Analysis/Figures/Figure7_EndadBmRaw.pdf", width=16.5, height=11, units="cm", useDingbats=FALSE)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Assess variability in random effects ####
@@ -69,6 +69,7 @@ boxplot(endad.bm ~ field.ID+samcam, data, las=2, col="grey", main="Variability w
 
 # Model Formulation
 endad.bm.glob1 <- lmer(log1p(endad.bm) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc:scl.pH + + scl.ats1 + I(scl.ats1^2) + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data)
+endad.bm.glob0 <- lmer(log1p(endad.bm) ~ 1 + (1|field.ID) + offset(log(area)),data=data)
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
@@ -135,6 +136,7 @@ endad.bm.best <- lmer(log1p(endad.bm) ~ age_class + samcam + I(scl.mc^2) + scl.p
 summary(endad.bm.best)
 
 # anova
+car::Anova(endad.bm.best, type="III")
 summary(aov(endad.bm.best))
 
 write.csv(summary(endad.bm.best)$coefficients, "Analysis/OutputTables/EndadBmBestCoef.csv")

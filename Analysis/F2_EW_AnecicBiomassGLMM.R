@@ -69,6 +69,7 @@ boxplot(anc.bm ~ field.ID+samcam, data, las=2, col="grey", main="Variability wit
 
 # Model Formulation
 anc.bm.glob1 <- lmer(log1p(anc.bm) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc:scl.pH + + scl.ats1 + I(scl.ats1^2) + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data)
+anc.bm.glob0 <- lmer(log1p(anc.bm) ~ 1  + (1|field.ID) + offset(log(area)),data=data)
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 

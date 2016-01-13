@@ -69,6 +69,7 @@ boxplot(anc~field.ID+samcam, data, las=2, col="grey", main="Variability within s
 # Model Formulation
 anc.glob1 <- glmer(anc ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 anc.glob2 <- glmer(anc ~ age_class*samcam + scl.ats1 + I(scl.ats1^2)             + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+anc.glob0 <- glmer(anc ~ 1 + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
@@ -92,6 +93,7 @@ anc.avgmod1.d4 <- model.avg(anc.dredge1, subset = delta < 4)
 summary(anc.avgmod1.d4)
 data.frame(importance(anc.avgmod1.d4))
 # AICc range 741-745
+
 
 #anc.dredge2 <- dredge(anc.glob2)
 head(anc.dredge2,10)

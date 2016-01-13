@@ -69,6 +69,7 @@ boxplot(endad~field.ID+samcam, data, las=2, col="grey", main="Variability within
 # Model Formulation
 endad.glob1 <- glmer(endad ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.mc*scl.pH + scl.pH*scl.cn + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 endad.glob2 <- glmer(endad ~ age_class*samcam + scl.ats1 + I(scl.ats1^2)             + scl.pH*scl.cn + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
+endad.glob0 <- glmer(endad ~ 1 + (1|field.ID) + offset(log(area)),data=data,family=poisson, control=glmerControl(optimizer="bobyqa"))
 # offsset is used due to the personal advice by T. Onkelinx:
 # You better use an offset if you want to express the model in terms of m². Just add offset(log(0.25)) to the model. 
 
