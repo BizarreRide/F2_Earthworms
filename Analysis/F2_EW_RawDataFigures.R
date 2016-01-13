@@ -79,7 +79,7 @@ rfig1.abc1 <- ggplot(data1.rf[!data1.rf$sfg==c("ancad","endad","N"),], aes(x=age
             ylab(expression(paste("Abundance \u00B1 CI ","[Ind. x ",0.25,m^-2," ]")))+
             ylim(-10,max(data1.rf$abc.mean+data1.rf$abc.se)) +
             labs(fill="Functional Group") +
-            scale_fill_grey(labels=c("anecic juvenile","anecic adult","endogeic juvenile", "endogeic adult","epigeic")) +
+            scale_fill_grey(labels=c("anecic juvenile","anecic adult","endogeic juvenile", "endogeic adult","epigeic", "total")) +
             scale_y_continuous(breaks=pretty_breaks(n=10)) +
             scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +  
             mytheme +
