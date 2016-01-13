@@ -135,8 +135,8 @@ outlier <- list(abn.anc <- -c(43,65),
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #load( file="Analysis/OutputTables/F2_EW_PdredgeAll.rda") # Parrallelized dredge, probably works with optimizer when rsquared is disabled
-load( file="Analysis/OutputTables/F2_EW_DredgeAll1.rda")  # Non parallelized calculation
-load(file="Analysis/OutputTables/F2_EW_Mselect.rda")
+load( file="Analysis/F2_EW_DredgeAll1.rda")  # Non parallelized calculation
+load(file="Analysis/F2_EW_Mselect.rda")
 
 ls.abn.dredge[[2]] <- Mselect.ancad
 ls.bms.dredge[[2]] <- Mselect.ancad.bm
@@ -167,6 +167,11 @@ endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field
 
 ls.bestmodels[[19]] <- endad.best
 
+dt.exp$y <- dt.rsp[,"ancad.bm", with=F]
+ancad.bm.glog <- glmer(y+1 ~ age_class + scl.ats1 + I(scl.ats1^2) + (1 | field.ID), family= gaussian(link="log"), data=dt.exp, control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)))
+
+ls.bestmodels[[20]]  <- ancad.bm.glog
+
 # 1.b Check Convergence ####
 
 p = 19
@@ -186,7 +191,7 @@ for (i in 1:p) {
 # 1.c Model Validation #####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for(k in 1:p){ 
+for(k in 1:20){ 
   # print(list(summary(ls.bestmodels[[k]]),Anova(ls.bestmodels[[k]], type="II")))
   #corvif(ls.bestmodels[[k]])
   
@@ -236,10 +241,9 @@ coefplot2(ls.bestmodels[[2]])
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-df.bstCoef1 <- matrix(NA,length(coefficients), (p+1)*3)
+df.bstCoef1 <- data.frame(matrix(NA,length(coefficients), (p+1)*3))
 rownames(df.bstCoef1) <- coefficients
 df.bstCoef1[,1] <- coefficients
-colnames(df.bstCoef1) <- rep(c("covariate",responses,"endad.old"), each=3)
 
 df.bstCoef2 <- data.frame(row.names = coefficients, id = 1:25) 
 
@@ -266,6 +270,9 @@ for (i in 1:p) {
     #useful(i); fun(i); good(i);
   }
 } 
+colnames <- rep(c("covariate",responses,"endad.old"), each=3)
+numeration <- rep(c(1,2,3), length(colnames)/3)
+colnames(df.bstCoef1)  <- paste(colnames, numeration, sep="")
 
 
 df.add <- matrix(NA,5,(p+1)*3)
@@ -285,7 +292,7 @@ df.bstCoef1 <- rbind(measure[4:length(measure)],df.bstCoef1[,4:ncol(df.bstCoef1)
 
 #round(summary(ls.bestmodels[[1]])$coefficients[, c(3,4)],4)
 
-write.csv(df.bstCoef1, file="Analysis/OutputTables/bstCoef.csv")
+# write.csv(df.bstCoef1, file="Analysis/OutputTables/bstCoef.csv")
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -328,10 +335,18 @@ endad.pred <- newdata
 
 ls.pred[[19]] <- endad.pred
 
+X <- model.matrix(~ age_class + scl.ats1 + I(scl.ats1^2), data = newdata)
+newdata$fit <- X %*% fixef(ancad.bm.glog)
+newdata$SE <- sqrt(  diag(X %*%vcov(ancad.bm.glog) %*% t(X))  )
+newdata$upr=newdata$fit+1.96*newdata$SE
+newdata$lwr=newdata$fit-1.96*newdata$SE
+ancad.bm.glog.pred <- newdata
+
+ls.pred[[20]] <- ancad.bm.glog.pred
 
 
 # Rename samcam for facetting
-for (i in 1:p) {
+for (i in 1:20) {
   ls.pred[[i]]$samcam2 <- plyr::revalue(pred$samcam,c("1" ="autumn 2012",  "2" ="spring 2013", "3"="autumn 2013"))
   ls.pred[[i]]$age_class <- plyr::revalue(pred$age_class,c("A_Cm"="Cm","B_Sp_young" ="Sp_Y","C_Sp_int1" ="Sp_I1","D_Sp_int2" ="Sp_I2","E_Sp_old" ="Sp_O"))
   # Reverse scaling of covariate
@@ -344,14 +359,14 @@ for (i in 1:p) {
   ls.pred[[i]]$area <- ls.pred[[i]]$area*4
 }
 
-save(ls.pred, file="C:/Users/Quentin/Documents/git_repositories/F2_Earthworms/Analysis/OutputTables/F2_EW_lsPred.rda")
+save(ls.pred, file="Analysis/F2_EW_lsPred.rda")
 
 ## plot predictions with error bars // confidence intervals???
 
 # !!!! Attention calculating the exp() is not valid for all models (i.e. Species Richness) !!!!
 require(ggplot2)
 windows(record=T)
-for(i in 1:p){
+for(i in 1:20){
   predfig <- ggplot(ls.pred[[i]], aes(x = age_class, y = exp(fit), ymin = exp(lwr), ymax = exp(upr))) + 
     geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
     geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
@@ -514,9 +529,9 @@ for (i in 1:p) {
 df.posthocSC[,1] <- paste(xx$"contrast")
 df.posthocSC[,2] <- paste(xx$"age_class")
 
-write.csv(df.posthoc, file="Analysis/OutputTables/df.posthoc.csv")
-write.csv(df.posthocAC, file="Analysis/OutputTables/df.posthocAC.csv")
-write.csv(df.posthocSC, file="Analysis/OutputTables/df.posthocSC.csv")
+# write.csv(df.posthoc, file="Analysis/OutputTables/df.posthoc.csv")
+# write.csv(df.posthocAC, file="Analysis/OutputTables/df.posthocAC.csv")
+# write.csv(df.posthocSC, file="Analysis/OutputTables/df.posthocSC.csv")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Post Hoc Multicomparisons with function glht
@@ -579,7 +594,7 @@ for(i in 1:18){
   df.compM2 <- rbind(df.compM2, df.compM)
 }
 
-write.csv(df.compM2, file="Analysis/OutputTables/ComponentModels.csv")
+# write.csv(df.compM2, file="Analysis/OutputTables/ComponentModels.csv")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # 2.b Get Variable importance #####
@@ -617,7 +632,7 @@ for (i in 1:18) {
   
 }  #end for
 
-write.csv(df.relImportance1, file="Analysis/OutputTables/Importance.csv")
+# write.csv(df.relImportance1, file="Analysis/OutputTables/Importance.csv")
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -655,7 +670,7 @@ for (i in 1:18) {
   
 } 
 
-write.csv(df.avCoef1, file="Analysis/OutputTables/AVerageCoefficients.csv")
+# write.csv(df.avCoef1, file="Analysis/OutputTables/AVerageCoefficients.csv")
 
 
 # Weitere Befehle: 
@@ -688,4 +703,12 @@ for(i in 1:18) {
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
+# 3. save all tables ####
+# write.csv(df.bstCoef1, file="Analysis/OutputTables/bstCoef.csv")
+# save(ls.pred, file="Analysis/F2_EW_lsPred.rda")
+# write.csv(df.posthoc, file="Analysis/OutputTables/df.posthoc.csv")
+# write.csv(df.posthocAC, file="Analysis/OutputTables/df.posthocAC.csv")
+# write.csv(df.posthocSC, file="Analysis/OutputTables/df.posthocSC.csv")
+# write.csv(df.compM2, file="Analysis/OutputTables/ComponentModels.csv")
+# write.csv(df.relImportance1, file="Analysis/OutputTables/Importance.csv")
+# write.csv(df.avCoef1, file="Analysis/OutputTables/AVerageCoefficients.csv")

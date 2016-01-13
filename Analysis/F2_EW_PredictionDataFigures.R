@@ -9,7 +9,7 @@
 # Load Data
 ##############################################################
 # Predictions
-load(file="C:/Users/Quentin/Documents/git_repositories/F2_Earthworms/Analysis/OutputTables/F2_EW_lsPred.rda")
+load(file="Analysis/F2_EW_lsPred.rda")
 
 # Raw Data
 source("Data/GatherSource/F2_EW_MakeLikeFile.R")
@@ -121,7 +121,7 @@ df.plot.bms2[!df.plot.bms2$sfg %in% c("endad","ancad"),]$fit=0 # set all other g
 # Barplots
 # Abundance
 
-plot.raw.abn <- ggplot(df.plot.abn[!df.plot.abn$sfg %in% c("endad","ancad"),], aes(x=age_class, y=fit, fill=sfg)) +  
+plot.abn <- ggplot(df.plot.abn[!df.plot.abn$sfg %in% c("endad","ancad"),], aes(x=age_class, y=fit, fill=sfg)) +  
   geom_bar(stat="identity", position="dodge") + 
   geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
   geom_bar(stat="identity", position="dodge", data=df.plot.abn2[!df.plot.abn2$sfg %in% c("anc","end"),]) +
@@ -141,13 +141,13 @@ plot.raw.abn <- ggplot(df.plot.abn[!df.plot.abn$sfg %in% c("endad","ancad"),], a
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
         legend.title=element_text(size=6),
         legend.text=element_text(size=7),
-        legend.position=c(0.18,0.68))
+        legend.position=c(0.1,0.9))
 
-#ggsave(rfig1.abc1,filename="Analysis/Figures/Figure1.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
+ggsave(plot.abn,filename="Analysis/Figures/Figure1.pdf", width=14, height=11, units="cm", useDingbats=FALSE)
 
 
 # Biomass
-plot.raw.bms <- ggplot(df.plot.bms[!df.plot.bms$sfg %in% c("endad","ancad"),], aes(x=age_class, y=fit, fill=sfg)) +  
+plot.bms <- ggplot(df.plot.bms[!df.plot.bms$sfg %in% c("endad","ancad"),], aes(x=age_class, y=fit, fill=sfg)) +  
   geom_bar(stat="identity", position="dodge") + 
   geom_bar(stat="identity", position="dodge", colour="#454545", size=0.15, show_guide=FALSE) + 
   geom_bar(stat="identity", position="dodge", data=df.plot.bms2[!df.plot.bms2$sfg %in% c("anc","end"),]) +
@@ -156,7 +156,7 @@ plot.raw.bms <- ggplot(df.plot.bms[!df.plot.bms$sfg %in% c("endad","ancad"),], a
   geom_errorbar(aes(ymin=lwr, ymax=upr), position=position_dodge(0.9),width=0.15, size=0.15, data=df.plot.bms[!df.plot.bms$measure %in% "observed",]) +
   facet_grid(measure~samcam, scales="free_y") +
   xlab("Age Class") + 
-  ylab("Abundance") +
+  ylab("Biomass") +
   #ylim(-10,max(df.plot.bms$fit+df.plot.bms$abc.se)) +
   labs(fill="Functional Group") +
   scale_fill_grey(labels=c("anecic juvenile","anecic adult","endogeic juvenile", "endogeic adult","epigeic", "total")) +
@@ -167,9 +167,8 @@ plot.raw.bms <- ggplot(df.plot.bms[!df.plot.bms$sfg %in% c("endad","ancad"),], a
   theme(axis.text.x =element_text(angle=30, hjust=1, vjust=1),
         legend.title=element_text(size=6),
         legend.text=element_text(size=7),
-        legend.position=c(0.18,0.68))
+        legend.position=c(0.1,0.9))
 
 
-#ggsave(rfig1.abc1,filename="Analysis/Figures/Figure1.pdf", width=15, height=11, units="cm", useDingbats=FALSE)
-
+ggsave(plot.bms,filename="Analysis/Figures/Figure2.pdf", width=14, height=11, units="cm", useDingbats=FALSE)
 
