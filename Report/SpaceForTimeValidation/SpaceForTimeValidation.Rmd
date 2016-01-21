@@ -291,7 +291,9 @@ points(plot2, "sites", pch=p_shp3, bg=p_bg3, cex=1.0)
 points(plot2, "species", pch=4, cex=1.0)
 legend("topleft", legend=c("Sp_O", "SP_I2", "SP_I1", "Sp_Y", "Cm"), text.col="black", pch=p_shp.legend, pt.bg=p_bg, cex=0.54, pt.cex=0.64, inset = c(-0.22,0))
 text(plot2,"sp", labels=names(df.rsp3), cex=1.0)
-plot(ef, add = TRUE, col="grey") 
+#plot(ef, add = TRUE, col="grey") 
+dev.copy2pdf(file="Analysis/Figures/FigureS1-PCA.pdf", width=c/2.54, height=d/2.54, useDingbats=F, out.type = "pdf")
+
 ```
 
 ### Summary PCA
