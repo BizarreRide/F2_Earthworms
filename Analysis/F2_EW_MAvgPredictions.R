@@ -135,11 +135,16 @@ outlier <- list(abn.anc <- -c(43,65),
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #load( file="Analysis/OutputTables/F2_EW_PdredgeAll.rda") # Parrallelized dredge, probably works with optimizer when rsquared is disabled
-load( file="Analysis/F2_EW_DredgeAll1.rda")  # Non parallelized calculation
+load( file="F2_EW_pDredgeAll.rda")  # Non parallelized calculation
+load( file="F2_EW_DredgeAll1.rda")  # Non parallelized calculation
 load(file="Analysis/F2_EW_Mselect.rda")
 
 ls.abn.dredge[[2]] <- Mselect.ancad
-ls.bms.dredge[[2]] <- Mselect.ancad.bm
+compare_pdredge1 <- ls.abn.dredge[[1]]
+compare_pdredge10 <- ls.bms.dredge[[1]]
+compare_dredge1 <- ls.abn.dredge[[1]]
+compare_dredge10 <- ls.bms.dredge[[1]]
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # 1. Best Models (lowest AICc) #####

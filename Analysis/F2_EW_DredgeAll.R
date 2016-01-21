@@ -216,8 +216,6 @@ for(i in 1:p) {
         ls.abn.dredge[[i]] <- assign(name, GM.dredge)
 }
 
-View(ls.abn.dredge[[2]])
-
 # Dredge Biomass ####
 p <- ncol(dt.rsp.bms)
 ls.bms.dredge <- list()
