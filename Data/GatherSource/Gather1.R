@@ -12,7 +12,8 @@
 # KnitHTML brings an error message if not included; but for repsoducibility the full path should not be given!
 
 # Load data
-data <- read.delim("Data/F2_EW_Total.txt", header=TRUE)
+#data <- read.delim("Data/F2_EW_Total.txt", header=TRUE)
+data <- read.delim("Data/F2_EW_Total_NewCLimate.txt", header=TRUE)
 
 
 
@@ -31,7 +32,14 @@ data$weed_control <- ordered(data$weed_control)
 data$soil_compaction <- ordered(data$soil_compaction)
 data$compaction <- ordered(data$compaction)
 data$date <- strptime(data$date, "%d.%m.%Y")
+data$location <- plyr::revalue(data$location, c("Ronneberg" = "Ronnenberg"))
+# Create variable d(delta)samcam as the time difference of each sampling date to the first date, that each field was sampled; first date is Zero for all fields. ####
+beginning <- strptime(rep(("01.01.2012"),60),"%d.%m.%Y")
+data$date[1:60]
+data$dsamcam <- with(data, round(c(date[1:60]-beginning,date[61:120]-beginning,date[121:180]-beginning),0))
 
+# create covariate for offset, area = area of the pit where the soil-core was taken from
+data$area <- rep(0.25,180)
 summary(data)
 str(data)
 dim(data)

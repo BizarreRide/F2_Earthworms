@@ -45,6 +45,7 @@ dt.rsp <- data.table(cbind(dt.rsp.abn, dt.rsp.bms, dt.rsp.bdv))
 
 dt.exp<- as.data.table(data[,c("age_class", "samcam", "field.ID", "location", "area")])
 dt.exp <- cbind(dt.exp, std.var)
+dt.exp2 <- dt.exp
 
 responses <-  c(colnames(dt.rsp.abn), colnames(dt.rsp.bms), colnames(dt.rsp.bdv)[1:2])
 covariates <- c("age_class", "samcam", "scl.mc", "I(scl.mc^2)", "scl.cn", "scl.pH", "scl.clay", "scl.ats1", "I(scl.ats1^2)", "scl.prec1", "age_class:samcam", "scl.mc:scl.pH", "scl.cn:scl.pH")
@@ -126,7 +127,9 @@ outlier <- list(abn.anc <- -c(43,65),
                 bms.endo.juv <- -c(34,10,97,175,174,137),
                 bms.juv <- -c(57,97,175,174,137,138),
                 bdv.SR <- -c(43,44,173,137,138),
-                bdv.H.juv <- -c(53,43,44,81,173,175)
+                bdv.H.juv <- -c(53,43,44,81,173,175),
+                endad.old <- 1:180,
+                anc.glog <- 1:180
                 )
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -134,16 +137,14 @@ outlier <- list(abn.anc <- -c(43,65),
 # Load dredge objects ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-#load( file="Analysis/OutputTables/F2_EW_PdredgeAll.rda") # Parrallelized dredge, probably works with optimizer when rsquared is disabled
-load( file="F2_EW_pDredgeAll.rda")  # Non parallelized calculation
-load( file="F2_EW_DredgeAll1.rda")  # Non parallelized calculation
-load(file="Analysis/F2_EW_Mselect.rda")
+# load( file="F2_EW_DredgeAll1.rda") # Parrallelized dredge, probably works with optimizer when rsquared is disabled
+load(file="Analysis/DredgeRdata/F2_EW_PdredgeAll_OutlierNewClimate1.rda")
+# load(file="Analysis/DredgeRdata/F2_EW_PdredgeAll_NewClimate.rda")
+# load(file="Analysis/DredgeRdata/F2_EW_PdredgeAll_Outlier.rda")
 
-ls.abn.dredge[[2]] <- Mselect.ancad
-compare_pdredge1 <- ls.abn.dredge[[1]]
-compare_pdredge10 <- ls.bms.dredge[[1]]
-compare_dredge1 <- ls.abn.dredge[[1]]
-compare_dredge10 <- ls.bms.dredge[[1]]
+# ls.abn.dredge[[2]] <- Mselect.ancad
+
+ls.dredge <- c(ls.abn.dredge, ls.bms.dredge, ls.bdv.dredge)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -157,9 +158,9 @@ ls.dredge <- c(ls.abn.dredge, ls.bms.dredge, ls.bdv.dredge)
 p <- ncol(dt.rsp.abn) + ncol(dt.rsp.abn) + ncol(dt.rsp.bdv) -1
 
 for ( i in 1:p) {
-#   dt.exp2 <- dt.exp[outlier[[i]],]
-#   dt.exp2$y <- dt.rsp[outlier[[i]],i, with=F]
-  dt.exp$y <- dt.rsp[,i, with=F]
+  dt.exp <- dt.exp2[outlier[[i]],]
+  dt.exp$y <- dt.rsp[outlier[[i]],i, with=F]
+  #dt.exp$y <- dt.rsp[,i, with=F]
   M.best <- get.models(ls.dredge[[i]], 1)[[1]]
   name <- paste("BestModel",i,responses[i], sep = ".")
   assign(name, M.best)
@@ -167,6 +168,7 @@ for ( i in 1:p) {
   names(ls.bestmodels)[[i]] <- name
 }
 
+dt.exp <- dt.exp2
 dt.exp$y <- dt.rsp[,"endad", with=F]
 endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID),dt.exp,family=poisson, control=glmerControl(optimizer="bobyqa"))
 
@@ -179,7 +181,7 @@ ls.bestmodels[[20]]  <- ancad.bm.glog
 
 # 1.b Check Convergence ####
 
-p = 19
+p = length(ls.bestmodels)
 failconv <- matrix(NA,p,2)
 for (i in 1:p) {
   relgrad <- with(ls.bestmodels[[i]]@optinfo$derivs,solve(Hessian,gradient))
@@ -187,16 +189,18 @@ for (i in 1:p) {
   failconv[i,2] <- max(abs(relgrad))
 }
 
+
 # if max(abs(relgrad)) is <0.001 then things might be ok... 
 # for details see 
 # http://stats.stackexchange.com/questions/110004/how-scared-should-we-be-about-convergence-warnings-in-lme4
 
+#!!!! glmercontrol(calc.derivs = FALSE) 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # 1.c Model Validation #####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for(k in 1:20){ 
+for(k in 1:length(ls.bestmodels)){ 
   # print(list(summary(ls.bestmodels[[k]]),Anova(ls.bestmodels[[k]], type="II")))
   #corvif(ls.bestmodels[[k]])
   
@@ -245,6 +249,7 @@ coefplot2(ls.bestmodels[[2]])
 # 1.d Best Model Coefficients ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+p <- length(ls.bestmodels)
 
 df.bstCoef1 <- data.frame(matrix(NA,length(coefficients), (p+1)*3))
 rownames(df.bstCoef1) <- coefficients
@@ -252,7 +257,7 @@ df.bstCoef1[,1] <- coefficients
 
 df.bstCoef2 <- data.frame(row.names = coefficients, id = 1:25) 
 
-for (i in 1:p) {
+for (i in 1:length(ls.bestmodels)) {
   #ERROR HANDLING
   possibleError <- tryCatch(
     coeftab(ls.bestmodels[[i]]),
@@ -275,30 +280,34 @@ for (i in 1:p) {
     #useful(i); fun(i); good(i);
   }
 } 
-colnames <- rep(c("covariate",responses,"endad.old"), each=3)
+colnames <- rep(c("covariate",responses,"endad.old", "anc.glog"), each=3)
 numeration <- rep(c(1,2,3), length(colnames)/3)
 colnames(df.bstCoef1)  <- paste(colnames, numeration, sep="")
 
 
 df.add <- matrix(NA,5,(p+1)*3)
 row.names(df.add) <- c("Rrandom", "Rsquared", "R2m", "R2c", "AICc")
-i=19
-for(i in 1:p){
-  dt.exp$y <- dt.rsp[,i,with=FALSE]
+for(i in 1:length(ls.bestmodels)){
+  dt.exp <- dt.exp2[outlier[[i]],]
+  dt.exp$y <- dt.rsp[outlier[[i]],i, with=F]
+  #dt.exp$y <- dt.rsp[,i,with=FALSE]
   df.add[1,(3+i*3)] <- round(summary(lm(fitted(ls.bestmodels[[i]]) ~ dt.exp$y))$adj.r.squared,2)
   df.add[2,(3+i*3)] <- round(summary(lm(predict(ls.bestmodels[[i]], type="response") ~ dt.exp$y))$adj.r.squared,2)
   df.add[3:4,(3+i*3)] <- round(r.squaredGLMM(ls.bestmodels[[i]]),2)
   df.add[5,(3+i*3)] <- round(AIC(ls.bestmodels[[i]]),1)
 }
+colnames(df.add) <- colnames(df.bstCoef1)
+
 
 measure <- rep(c("estimate", "2.5%", "97.5%"),p+1)
-df.bstCoef1 <- rbind(measure[4:length(measure)],df.bstCoef1[,4:ncol(df.bstCoef1)],df.add[,4:length(measure)])
+df.bstCoef1 <- rbind(measure[4:length(measure)],df.bstCoef1[,4:ncol(df.bstCoef1)],df.add[,4:ncol(df.bstCoef1)])
 #df.bstCoefA <- df.bstCoef1
 
 #round(summary(ls.bestmodels[[1]])$coefficients[, c(3,4)],4)
 
 # write.csv(df.bstCoef1, file="Analysis/OutputTables/bstCoef.csv")
 
+length(fitted(ls.bestmodels[[i]]))
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # 1.e get best model predictions with CI ####
@@ -319,7 +328,7 @@ newdata$area <- newdata$area*4
 ls.pred <- list()
 for(i in 1:18) {
   f1 <- paste("~",formula(ls.bestmodels[[i]])[3])
-  f1 <- gsub("\\+ \\(1.*\\)", "", f1)
+  f1 <- gsub("\\+ \\(1 \\| field.ID\\)", "", f1)
   f1 <- gsub("\\(1.*\\)", "1",f1)
   f1 <- formula(print(f1, quote=F))
   X <- model.matrix( f1, newdata)
@@ -330,6 +339,7 @@ for(i in 1:18) {
   pred <- newdata
   ls.pred[[i]] <- pred
 }
+
 
 X <- model.matrix(~  age_class*samcam + scl.prec1 + scl.mc*scl.pH, data = newdata)
 newdata$fit <- X %*% fixef(endad.best)
@@ -376,8 +386,8 @@ for(i in 1:20){
     geom_bar(stat="identity",position = position_dodge(1), col="454545", size=0.15, fill="grey") +
     geom_errorbar(position = position_dodge(1),col="black",width=0.15, size=0.15) + 
     facet_grid(.~samcam2) +
-    geom_hline(xintercept = 1, size=0.15) +
-    ylab("Anecic Abundance Ind./m²") +
+    geom_hline(yintercept = 0, size=0.15) +
+    ylab(colnames(dt.rsp)[i]) +
     xlab("Age Class") +
     scale_x_discrete(labels=c("Cm", "Sp_Y", "Sp_I1", "Sp_I2", "Sp_O")) +
     #scale_y_continuous(limits=c(0,110)) +
@@ -609,7 +619,6 @@ df.relImportance1 <- matrix(NA,length(covariates), 19)
 rownames(df.relImportance1) <- covariates
 df.relImportance1[,1] <- covariates
 colnames(df.relImportance1) <- c("covariates",responses)
-ncol(df.relImportance1) 
 
 df.relImportance2 <- data.frame(row.names = covariates, id = 1:length(covariates))
 

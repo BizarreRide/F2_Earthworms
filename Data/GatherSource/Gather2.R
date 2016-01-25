@@ -12,7 +12,7 @@
 
 # data2 <- read.table("data/F2_EW_Total.txt", header=T)
 
-data2 <- data[,-c(68:82)] # remove Biodiversity Indices + Functional Groups
+data2 <- data[,-c(69:83)] # remove Biodiversity Indices + Functional Groups
 
 
 # Explanatory variablaes

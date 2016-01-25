@@ -53,6 +53,7 @@ dt.rsp.bms[,juv.bm:= anc.juv.bm + endo.juv.bm]
 # Response variables for biodiversity
 dt.rsp.bdv <- as.data.table(data[,c("SR", "H", "J")])
 
+dt.rsp <- cbind(dt.rsp.abn, dt.rsp.bms, dt.rsp.bdv)
 
 dt.exp<- as.data.table(data[,c("age_class", "samcam", "field.ID", "location", "area")])
 dt.exp <- cbind(dt.exp, std.var)
@@ -61,6 +62,7 @@ dt.exp <- cbind(dt.exp, std.var)
 # Detecting Outliers ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 row.names(dt.rsp) <- 1:nrow(dt.rsp)
+p <- ncol(dt.rsp)-1
 for(i in 1:p) {
   par(mfrow = c(2,2),
       mar = c(3,3,0,1),
@@ -118,18 +120,28 @@ outlier.bdv <-  list(bdv.SR <- -c(43,44,173,137,138),
 
 # Global Models Abundance ####
 
-library(optimx)
+ frm.global <- as.formula(y ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.ats1 + I(scl.ats1^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)))
+ frm.global.log <- as.formula(log1p(y) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.ats1 + I(scl.ats1^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)))
+#frm.global <- as.formula(y ~ age_class*date + scl.mc + scl.pH + scl.cn + scl.clay + scl.ats1 + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)))
+#frm.global.log <- as.formula(log1p(y) ~ age_class*date + scl.mc + scl.pH + scl.cn + scl.clay + scl.ats1 + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)))
+
+dt.exp$date <- data$dsamcam
+dt.exp2 <- dt.exp
+
+
+#library(optimx)
 #con = glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5))
 #con = glmerControl(optimizer = "optimx", calc.derivs = FALSE, optCtrl = list(method = "nlminb", starttests = FALSE, kkt = FALSE))
 con = glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5), calc.derivs = FALSE, check.conv.grad="ignore")
-
 
 p <- ncol(dt.rsp.abn)
 ls.abn.Mglobal <- list()
 
 for(i in 1:p){
+        #dt.exp <- dt.exp2[outlier.abn[[i]],]
+        #dt.exp$y <- dt.rsp.abn[outlier.abn[[i]],i, with=F]
         dt.exp$y <- dt.rsp.abn[,i, with=F]
-        Mglobal <- glmer(y ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.ats1 + I(scl.ats1^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=dt.exp,family=poisson, control=con)
+        Mglobal <- glmer(frm.global,data=dt.exp,family=poisson, control=con)
         print(summary(Mglobal))
         print(overdisp_fun(Mglobal))
         name <- paste("Ew_Model",i,names(dt.rsp.abn)[i], sep = ".")
@@ -141,9 +153,11 @@ for(i in 1:p){
 p <- ncol(dt.rsp.bms)
 ls.bms.Mglobal <- list()
 for(i in 1:p){
+        #dt.exp <- dt.exp2[outlier.bms[[i]],]
+        #dt.exp$y <- dt.rsp.bms[outlier.bms[[i]],i, with=F]
         dt.exp$y <- dt.rsp.bms[,i, with=F]
-        Mglobal <- lmer(log1p(y) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.ats1 + I(scl.ats1^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=dt.exp) #, control=glmerControl(optimizer="bobyqa"))
-        #Mglobal <- glmer(log1p(y) ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.ats1 + I(scl.ats1^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=dt.exp, family=gaussian(link="log")) #, control=glmerControl(optimizer="bobyqa"))
+        Mglobal <- lmer(frm.global.log,data=dt.exp) #, control=glmerControl(optimizer="bobyqa"))
+        #Mglobal <- glmer(frm.global.log,data=dt.exp, family=gaussian(link="log"), control=con)
         print(summary(Mglobal))
         print(overdisp_fun(Mglobal))
         name <- paste("Ew_Model",i,names(dt.rsp.bms)[i], sep = ".")
@@ -156,8 +170,10 @@ p <- ncol(dt.rsp.bdv)-1
 ls.bdv.Mglobal <- list()
 
 for(i in 1:p){
+        #dt.exp <- dt.exp2[outlier.bdv[[i]],]
+        #dt.exp$y <- dt.rsp.bdv[outlier.bdv[[i]],i, with=F]
         dt.exp$y <- dt.rsp.bdv[,i, with=F]
-        Mglobal <- lmer(y ~ age_class*samcam + scl.mc + I(scl.mc^2) + scl.ats1 + I(scl.ats1^2) + scl.mc*scl.pH + scl.pH*scl.cn  + scl.prec1 + scl.clay + (1|field.ID) + offset(log(area)),data=dt.exp) #, control=glmerControl(optimizer="bobyqa"))
+        Mglobal <- lmer(frm.global,data=dt.exp) #, control=glmerControl(optimizer="bobyqa"))
         print(summary(Mglobal))
         print(overdisp_fun(Mglobal))
         name <- paste("Ew_Model",i,names(dt.rsp.bdv)[i], sep = ".")
@@ -170,7 +186,7 @@ for(i in 1:p){
 
 ls.globalModels <- c(ls.abn.Mglobal, ls.bms.Mglobal,ls.bdv.Mglobal)
 
-for(k in 1:20){ 
+for(k in 1:18){ 
   # print(list(summary(ls.globalModels[[k]]),Anova(ls.globalModels[[k]], type="II")))
   #corvif(ls.globalModels[[k]])
   
@@ -255,17 +271,16 @@ sexpr <-parse(text = paste("!(", paste("(",
 # sexpr <- parse(text = paste(sexpr, "&& dc(scl.ats1, I(scl.ats1^2)) && dc(scl.mc, I(scl.mc^2))"))
 
 options(na.action = na.fail)
-dt.exp2 <- dt.exp
 
 # Dredge Abundance ####
 p <- ncol(dt.rsp.abn)
 ls.abn.dredge <- list()
 for(i in 1:p) {
-        dt.exp <- dt.exp2[outlier.abn[[i]],]
-        dt.exp$y <- dt.rsp.abn[outlier.abn[[i]],i, with=F]
-        #dt.exp$y <- dt.rsp.abn[,i, with=F]
-        clusterExport(clust, varlist=c("dt.exp2", "con"))
-        system.time(GM.dredge <- pdredge(ls.abn.Mglobal[[i]],  subset=smat, cluster=clust))
+        #dt.exp <- dt.exp2[outlier.abn[[i]],]
+        #dt.exp$y <- dt.rsp.abn[outlier.abn[[i]],i, with=F]
+        dt.exp$y <- dt.rsp.abn[,i, with=F]
+        clusterExport(clust, varlist=c("dt.exp", "con"))
+        GM.dredge <- pdredge(ls.abn.Mglobal[[i]],  subset=smat, cluster=clust)
         #fixed=c("age_class", "samcam"),
         name <- paste("Ew_abn.dredge",i,names(dt.rsp.abn)[i], sep = ".")
         assign(name, GM.dredge)
@@ -276,9 +291,9 @@ for(i in 1:p) {
 p <- ncol(dt.rsp.bms)
 ls.bms.dredge <- list()
 for(i in 1:p) {
-        dt.exp <- dt.exp2[outlier.bms[[i]],]
-        dt.exp$y <- dt.rsp.bms[outlier.bms[[i]],i, with=F]
-        #dt.exp$y <- dt.rsp.bms[,i, with=F]
+        #dt.exp <- dt.exp2[outlier.bms[[i]],]
+        #dt.exp$y <- dt.rsp.bms[outlier.bms[[i]],i, with=F]
+        dt.exp$y <- dt.rsp.bms[,i, with=F]
         clusterExport(clust, varlist=c("dt.exp", "con"))
         GM.dredge <- pdredge(ls.bms.Mglobal[[i]],  subset=smat, cluster=clust)
         #fixed=c("age_class", "samcam"),
@@ -291,8 +306,8 @@ for(i in 1:p) {
 p <- ncol(dt.rsp.bdv)-1
 ls.bdv.dredge <- list()
 for(i in 1:p) {
-        dt.exp2 <- dt.exp[outlier.bdv[[i]],]
-        dt.exp2$y <- dt.rsp.bdv[outlier.bdv[[i]],i, with=F]
+        dt.exp <- dt.exp2[outlier.bdv[[i]],]
+        dt.exp$y <- dt.rsp.bdv[outlier.bdv[[i]],i, with=F]
         #dt.exp$y <- dt.rsp.bdv[,i, with=F]
         clusterExport(clust, varlist=c("dt.exp", "con"))
         GM.dredge <- pdredge(ls.bdv.Mglobal[[i]],  subset=smat, cluster=clust)
@@ -302,17 +317,65 @@ for(i in 1:p) {
         ls.bdv.dredge[[i]] <- assign(name, GM.dredge)
 }
 
-save(list=c("ls.abn.dredge", "ls.abn.Mglobal", "ls.bms.dredge", "ls.bms.Mglobal", "ls.bdv.dredge", "ls.bdv.Mglobal"), 
-     file="C:/Users/Quentin/Documents/git_repositories/F2_Earthworms/Analysis/OutputTables/F2_EW_PdredgeAll.rda")
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+# Save #####
+ save(list=c("ls.abn.dredge", "ls.abn.Mglobal", "ls.bms.dredge", "ls.bms.Mglobal", "ls.bdv.dredge", "ls.bdv.Mglobal"), 
+      file="Analysis/DredgeRdata/F2_EW_PdredgeAll_NewCLimate.rda")
+
+
+# candidate models, careful thinking:
+
+# The only time models
+formula(y ~ age_class*samcam)
+formula(y ~ age_class + samcam)
+formula(y ~ age_class)
+formula(y ~ samcam)
+
+# The only soil models
+formula(y ~ scl.pH + scl.mc + scl.cn + scl.clay)
+formula(y ~ scl.pH + scl.mc)
+formula(y ~ scl.pH*scl.mc)
+formula(y ~ I(scl.pH^2) + I(scl.mc^2) + I(scl.cn^2) + scl.clay) # unimodal relationship
+formula(y ~ scl.pH + scl.mc + scl.cn + I(scl.pH^2) + I(scl.mc^2) + I(scl.cn^2) + scl.clay)
+
+# The weather models
+formula(y ~ scl.ats1 + scl.prec1 + scl.rad1 + scl.hum1)
+formula(y ~ I(scl.ats1^2) + I(scl.prec1^2) + I(scl.rad1^2) + I(scl.hum1^2))
+formula(y ~ I(scl.ats1 + scl.prec1 + scl.rad1 + scl.hum1 + scl.ats1^2) + I(scl.prec1^2) + I(scl.rad1^2) + I(scl.hum1^2))
+
+# The global model
+
+# The NULL model
+
+# derivative models
+# ats1 and mc are correlated!
+
+# Candidate models for ancad
+
+formula(y ~ age_class + samcam + scl.ats1 + I(scl.ats^2) + (1|field.ID) + offset(log(area)))
+formula(y ~ age_class + samcam + scl.prec1 + I(scl.ats^2) + (1|field.ID) + offset(log(area)))
+formula(y ~ age_class + samcam + scl.ats1 + I(scl.ats^2) + scl.prec1 + (1|field.ID) + offset(log(area)))
+formula(y ~ age_class + samcam + scl.ats1 + scl.cn + (1|field.ID) + offset(log(area)))
+formula(y ~ age_class + samcam + scl.ats1 + scl.pH + (1|field.ID) + offset(log(area)))
+formula(y ~ age_class + samcam + scl.ats1 + scl.cn + scl.pH + (1|field.ID) + offset(log(area)))
 
 
 
+f1 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.prec1 + (1|field.ID) + offset(log(area)))
+f2 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.clay + scl.prec1 + (1|field.ID) + offset(log(area)))
+f3 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.cn + scl.prec1 + (1|field.ID) + offset(log(area)))
+f4 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.pH + scl.prec1 + (1|field.ID) + offset(log(area)))
+f5 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.ats1 + scl.prec1 + (1|field.ID) + offset(log(area)))
+f6 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.clay + scl.pH + scl.prec1 + (1|field.ID) + offset(log(area)))
+f7 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.clay + scl.cn + scl.prec1 + (1|field.ID) + offset(log(area)))
+f8 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.clay + scl.ats1 + scl.prec1 + (1|field.ID) + offset(log(area)))
+f9 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.clay + (1|field.ID) + offset(log(area)))
+f10 <- formula(y ~ age_class + samcam + I(scl.ats1^2) + scl.cn + scl.pH + scl.prec1 + (1|field.ID) + offset(log(area)))
 
 
+# Candidate models for ancad.bm
 
 
 
