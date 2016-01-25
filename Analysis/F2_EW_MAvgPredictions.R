@@ -149,13 +149,13 @@ ls.dredge <- c(ls.abn.dredge, ls.bms.dredge, ls.bdv.dredge)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # 1. Best Models (lowest AICc) #####
+ls.dredge <- c(ls.abn.dredge, ls.bms.dredge, ls.bdv.dredge)
+con = glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5), calc.derivs = FALSE, check.conv.grad="ignore")
 
 # 1.a get the best models ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-ls.bestmodels <- list()
-ls.dredge <- c(ls.abn.dredge, ls.bms.dredge, ls.bdv.dredge)
 p <- ncol(dt.rsp.abn) + ncol(dt.rsp.abn) + ncol(dt.rsp.bdv) -1
+ls.bestmodels <- list()
 
 for ( i in 1:p) {
   dt.exp <- dt.exp2[outlier[[i]],]
@@ -168,16 +168,53 @@ for ( i in 1:p) {
   names(ls.bestmodels)[[i]] <- name
 }
 
-dt.exp <- dt.exp2
-dt.exp$y <- dt.rsp[,"endad", with=F]
-endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID),dt.exp,family=poisson, control=glmerControl(optimizer="bobyqa"))
+
+dt.exp <- dt.exp2[outlier[[4]],]
+dt.exp$y <- dt.rsp[outlier[[4]],"endad", with=F]
+#endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID),dt.exp,family=poisson, control=glmerControl(optimizer="bobyqa"))
+endad.best <- glmer(y ~age_class + samcam + scl.mc + I(scl.mc^2) + scl.pH + age_class:samcam + scl.mc:scl.pH  + (1|field.ID) + offfset(log(area)),dt.exp,family=poisson, control= con)
 
 ls.bestmodels[[19]] <- endad.best
+
 
 dt.exp$y <- dt.rsp[,"ancad.bm", with=F]
 ancad.bm.glog <- glmer(y+1 ~ age_class + scl.ats1 + I(scl.ats1^2) + (1 | field.ID), family= gaussian(link="log"), data=dt.exp, control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e5)))
 
 ls.bestmodels[[20]]  <- ancad.bm.glog
+
+# 1.a get the best models by Hand including offset ####
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ls.bestmodels <- list()
+
+dt.exp <- dt.exp2[outlier[[2]],]
+dt.exp$y <- dt.rsp[outlier[[2]],"ancad", with=F]
+#endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID),dt.exp,family=poisson, control=glmerControl(optimizer="bobyqa"))
+ancad.best <- glmer(y ~ age_class + samcam + I(scl.ats1^2) + (1 | field.ID) + offset(log(area)),dt.exp,family=poisson, control= con)
+
+ls.bestmodels[[1]] <- ancad.best
+
+dt.exp <- dt.exp2[outlier[[4]],]
+dt.exp$y <- dt.rsp[outlier[[4]],"endad", with=F]
+#endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID),dt.exp,family=poisson, control=glmerControl(optimizer="bobyqa"))
+endad.best <- glmer(y ~age_class + samcam + scl.mc + I(scl.mc^2) + scl.pH + age_class:samcam + scl.mc:scl.pH  + (1|field.ID) + offset(log(area)),dt.exp,family=poisson, control= con)
+
+ls.bestmodels[[2]] <- endad.best
+
+dt.exp <- dt.exp2[outlier[[10]],]
+dt.exp$y <- dt.rsp[outlier[[10]],"ancad.bm", with=F]
+#endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID),dt.exp,family=poisson, control=glmerControl(optimizer="bobyqa"))
+ancad.bm.best <- lmer(log1p(y) ~ age_class + (1 | field.ID) + offset(log(area)),dt.exp)
+
+ls.bestmodels[[3]] <- ancad.bm.best
+
+dt.exp <- dt.exp2[outlier[[12]],]
+dt.exp$y <- dt.rsp[outlier[[12]],"endad.bm", with=F]
+#endad.best <- glmer(y ~ age_class*samcam + scl.prec1 + scl.mc*scl.pH  + (1|field.ID),dt.exp,family=poisson, control=glmerControl(optimizer="bobyqa"))
+endad.bm.best <- lmer(log1p(y) ~ age_class + samcam + scl.mc + scl.pH + (1 | field.ID) + scl.mc:scl.pH + offset(log(area)),dt.exp)
+
+ls.bestmodels[[4]] <- endad.bm.best
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # 1.b Check Convergence ####
 
@@ -319,17 +356,19 @@ newdata <- expand.grid(age_class=rep(unique(dt.exp$age_class), each=3),
 newdata <- cbind(newdata, field.ID = c(1:12,13,14,15,rep(c(1:12,16,17,18),2)))
 df.exp.num <- as.data.frame(lapply(lapply(dt.exp[, 5:33, with=FALSE], mean),rep, nrow(newdata)))
 newdata <- cbind(newdata, df.exp.num)
-newdata$area <- newdata$area*4
+newdata$area <- newdata$area
 
 # In case of glmmadmb:
 # pred <- cbind(newdata, predict(ls.bestmodels[[1]], newdata, se.fit=TRUE)) 
 
 # In case of glmer
 ls.pred <- list()
-for(i in 1:18) {
+for(i in 1:19) {
   f1 <- paste("~",formula(ls.bestmodels[[i]])[3])
   f1 <- gsub("\\+ \\(1 \\| field.ID\\)", "", f1)
-  f1 <- gsub("\\(1.*\\)", "1",f1)
+  #f1 <- gsub("\\+ offset\\(log\\(area\\)\\)", "", f1)
+  #f1 <- paste(f1, "+ offset(log(area))")
+  #f1 <- gsub("\\(1.*\\)", "1",f1)
   f1 <- formula(print(f1, quote=F))
   X <- model.matrix( f1, newdata)
   newdata$fit <- X %*% fixef(ls.bestmodels[[i]])
@@ -341,14 +380,14 @@ for(i in 1:18) {
 }
 
 
-X <- model.matrix(~  age_class*samcam + scl.prec1 + scl.mc*scl.pH, data = newdata)
-newdata$fit <- X %*% fixef(endad.best)
-newdata$SE <- sqrt(  diag(X %*%vcov(endad.best) %*% t(X))  )
-newdata$upr=newdata$fit+1.96*newdata$SE
-newdata$lwr=newdata$fit-1.96*newdata$SE
-endad.pred <- newdata
-
-ls.pred[[19]] <- endad.pred
+# X <- model.matrix(~  age_class*samcam + scl.prec1 + scl.mc*scl.pH, data = newdata)
+# newdata$fit <- X %*% fixef(endad.best)
+# newdata$SE <- sqrt(  diag(X %*%vcov(endad.best) %*% t(X))  )
+# newdata$upr=newdata$fit+1.96*newdata$SE
+# newdata$lwr=newdata$fit-1.96*newdata$SE
+# endad.pred <- newdata
+# 
+# ls.pred[[19]] <- endad.pred
 
 X <- model.matrix(~ age_class + scl.ats1 + I(scl.ats1^2), data = newdata)
 newdata$fit <- X %*% fixef(ancad.bm.glog)
@@ -371,10 +410,10 @@ for (i in 1:20) {
   ls.pred[[i]]$cn <- ls.pred[[i]]$scl.cn* sd(data$cn) + mean(data$cn)
   ls.pred[[i]]$clay <- ls.pred[[i]]$scl.clay* sd(data$clay) + mean(data$clay)
   ls.pred[[i]]$pH <- ls.pred[[i]]$scl.pH* sd(data$pH) + mean(data$pH)
-  ls.pred[[i]]$area <- ls.pred[[i]]$area*4
+  ls.pred[[i]]$area <- ls.pred[[i]]$area
 }
 
-save(ls.pred, file="Analysis/F2_EW_lsPred.rda")
+# save(ls.pred, file="Analysis/F2_EW_lsPred.rda")
 
 ## plot predictions with error bars // confidence intervals???
 
@@ -407,7 +446,7 @@ library(lsmeans)
 library(multcompView)
 
 ls.lsm<- list()
-
+p=4
 df.posthoc <- matrix(NA,15,2+(2*p))
 
 for (i in 1:p) {
@@ -444,7 +483,7 @@ for (i in 1:p) {
 df.posthoc[,1] <- paste(x$"age_class")
 df.posthoc[,2] <- paste(x$"samcam")
 
-colnames(df.posthoc) <- c("Factor1", "Factor1", rep(c(colnames(dt.rsp)[1:18], "endad.old"),each=2))
+colnames(df.posthoc) <- c("Factor1", "Factor1", rep(c(colnames(dt.rsp)[1:18], "endad2","anc.glog"),each=2))
 df.posthoc <- rbind(c("age_class", "samcam", rep(c("lsmean", "group"), p)), df.posthoc)
 
 
@@ -470,11 +509,11 @@ for(i in 1:p){
 }
 
 #************************************************************************
-
+p=4
 
 ls.lsmAC <- list()
 df.posthocAC <- matrix(NA,30,2+(2*p))
-colnames(df.posthocAC) <- c("contrast", "samcam", rep(c(colnames(dt.rsp)[1:18], "endad.old"),each=2))
+colnames(df.posthocAC) <- c("contrast", "samcam", rep(c(colnames(dt.rsp)[1:18], "endad.old", "anc.glog"),each=2))
 
 for (i in 1:p) {
   #ERROR HANDLING
@@ -497,7 +536,7 @@ for (i in 1:p) {
   x <- contrast(lsm, "pairwise" , type = "response")
   print(x)
   xx <- summary(x)
-  df.posthocAC[,2+((2*i)-1)] <- round(xx$"estimate",2)
+  df.posthocAC[,2+((2*i)-1)] <- round(xx[,6],2) #z/t ratio
   df.posthocAC[,2+((2*i)-0)] <- round(xx$"p.value",3)
   name <- paste("lsm",i,names(dt.rsp)[i], sep = ".")
   ls.lsmAC[[i]] <- assign(name, lsm)
@@ -512,7 +551,7 @@ df.posthocAC[,2] <- paste(xx$"samcam")
 
 ls.lsmSC <- list()
 df.posthocSC <- matrix(NA,15,2+(2*p))
-colnames(df.posthocSC) <- c("contrast", "age_class", rep(c(colnames(dt.rsp)[1:18], "endad.old"),each=2))
+colnames(df.posthocSC) <- c("contrast", "age_class", rep(c(colnames(dt.rsp)[1:18], "endad.old", "anc.glog"),each=2))
 
 for (i in 1:p) {
   #ERROR HANDLING
@@ -534,7 +573,7 @@ for (i in 1:p) {
   x <- contrast(lsm, "pairwise" , type = "response")
   print(x)
   xx <- summary(x)
-  df.posthocSC[,2+((2*i)-1)] <- round(xx$"estimate",2)
+  df.posthocSC[,2+((2*i)-1)] <- round(xx[,6],2)
   df.posthocSC[,2+((2*i)-0)] <- round(xx$"p.value",3)
   name <- paste("lsm",i,names(dt.rsp)[i], sep = ".")
   ls.lsmSC[[i]] <- assign(name, lsm)
@@ -640,7 +679,7 @@ for (i in 1:18) {
     avgMd4Imp <- data.frame(importance(avgMd4))
     df.help <- merge(df.relImportance2,avgMd4Imp,by="row.names",all.x=TRUE, sort=FALSE)
     df.help <- df.help[order(df.help$id),]
-    df.relImportance1[,1+i] <- df.help[,3]
+    df.relImportance1[,1+i] <- round(df.help[,3],2)
     #useful(i); fun(i); good(i);
   }
   
@@ -702,7 +741,9 @@ for (i in 1:18) {
 ls.delta4 <- list()
 
 for (i in 1:18) {
-  dt.exp$y <- dt.rsp[,i, with=F]
+  dt.exp <- dt.exp2[outlier[[i]],]
+  dt.exp$y <- dt.rsp[outlier[[i]],i, with=F]
+  #dt.exp$y <- dt.rsp[,i, with=F]
   delta4.1 <- get.models(ls.dredge[[i]], delta < 4)
   ls.delta4[[i]] <- delta4.1
 }
@@ -719,10 +760,12 @@ for(i in 1:18) {
 
 # 3. save all tables ####
 # write.csv(df.bstCoef1, file="Analysis/OutputTables/bstCoef.csv")
-# save(ls.pred, file="Analysis/F2_EW_lsPred.rda")
+# save(ls.pred, file="Analysis/OutputTables/F2_EW_lsPred_OutlierNewClimateOffset.rda")
+
 # write.csv(df.posthoc, file="Analysis/OutputTables/df.posthoc.csv")
 # write.csv(df.posthocAC, file="Analysis/OutputTables/df.posthocAC.csv")
 # write.csv(df.posthocSC, file="Analysis/OutputTables/df.posthocSC.csv")
+
 # write.csv(df.compM2, file="Analysis/OutputTables/ComponentModels.csv")
 # write.csv(df.relImportance1, file="Analysis/OutputTables/Importance.csv")
 # write.csv(df.avCoef1, file="Analysis/OutputTables/AVerageCoefficients.csv")
