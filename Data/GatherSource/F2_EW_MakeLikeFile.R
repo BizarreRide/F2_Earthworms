@@ -66,6 +66,10 @@ is.correlated <- function(i, j, data, conf.level = .95, cutoff = .5, ...) {
   ct$p.value > (1 - conf.level) || abs(ct$estimate) <= cutoff
 }
 
+# Suppose we want to have set of models that exclude combinations of colinear
+# variables, that are significantly (p < 0.05) correlated, with Pearson
+# correlation coefficient larger than r = 0.5.
+
 # Need vectorized function to use with 'outer'
 vCorrelated <- Vectorize(is.correlated, c("i", "j"))
 ##############################################################
