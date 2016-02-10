@@ -5,25 +5,10 @@
 # 29.12.2015
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-setwd("C:/Users/Quentin/Documents/git_repositories/F2_Earthworms")
-
-
 
 # Load Data ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 source("Data/GatherSource/F2_EW_MakeLikeFile.R")
-
-# Additional Function:
-is.correlated <- function(i, j, data, conf.level = .95, cutoff = .5, ...) {
-  if(j >= i) return(NA)
-  ct <- cor.test(data[, i], data[, j], conf.level = conf.level, ...)
-  ct$p.value > (1 - conf.level) || abs(ct$estimate) <= cutoff
-}
-# Suppose we want to have set of models that exclude combinations of colinear
-# variables, that are significantly (p < 0.05) correlated, with Pearson
-# correlation coefficient larger than r = 0.5.
-
-vCorrelated <- Vectorize(is.correlated, c("i", "j")) # Need vectorized function to use with 'outer'
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Data Processing ####
@@ -53,16 +38,17 @@ dt.rsp.bms[,juv.bm:= anc.juv.bm + endo.juv.bm]
 # Response variables for biodiversity
 dt.rsp.bdv <- as.data.table(data[,c("SR", "H", "J")])
 
-dt.rsp <- cbind(dt.rsp.abn, dt.rsp.bms, dt.rsp.bdv)
+dt.rsp <- data.table(cbind(dt.rsp.abn, dt.rsp.bms, dt.rsp.bdv))
 
 dt.exp<- as.data.table(data[,c("age_class", "samcam", "field.ID", "location", "area")])
 dt.exp <- cbind(dt.exp, std.var)
+
+p <- ncol(dt.rsp)-1
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Detecting Outliers ####
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 row.names(dt.rsp) <- 1:nrow(dt.rsp)
-p <- ncol(dt.rsp)-1
 for(i in 1:p) {
   par(mfrow = c(2,2),
       mar = c(3,3,0,1),

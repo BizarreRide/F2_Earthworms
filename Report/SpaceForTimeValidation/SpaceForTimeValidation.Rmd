@@ -1,19 +1,20 @@
 ---
-title: "Space for Time Validation - Ms. Ref. No.: JBB-D-15-01116"
+title: 'Space for Time Validation - Ms. Ref. No.: JBB-D-15-01116'
 author:
-  - name: Quentin Schorpp
-    email: quentin.schorpp@ti.bund.de
-date: "`r Sys.Date()`"
-output: 
-      html_document:
-          toc: true
-          toc_depth: 3
-          number_sections: true
-          fig_caption: true
-          theme: cerulean
-          highlight: haddock
-          css: mystyle.css
-      
+- email: quentin.schorpp@ti.bund.de
+  name: Quentin Schorpp
+date: '`r Sys.Date()`'
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    css: mystyle.css
+    fig_caption: yes
+    highlight: haddock
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
 ---
 
           
@@ -23,7 +24,7 @@ knitr::opts_chunk$set(fig.align="center",
                       error=FALSE,
                       warning=FALSE,
                       echo=FALSE)
-knitr::opts_knit$set(root.dir = "C:/Users/Quentin/Documents/git_repositories/F2_Earthworms")
+knitr::opts_knit$set(root.dir = "D:/Quentin_Schorpp/Arbeitsprozess/git_repositories/F2_Earthworms")
 
 options(scipen=1, digits=2)
 set.seed(1234)
@@ -292,7 +293,7 @@ points(plot2, "species", pch=4, cex=1.0)
 legend("topleft", legend=c("Sp_O", "SP_I2", "SP_I1", "Sp_Y", "Cm"), text.col="black", pch=p_shp.legend, pt.bg=p_bg, cex=0.54, pt.cex=0.64, inset = c(-0.22,0))
 text(plot2,"sp", labels=names(df.rsp3), cex=1.0)
 #plot(ef, add = TRUE, col="grey") 
-dev.copy2pdf(file="Analysis/Figures/FigureS1-PCA.pdf", width=c/2.54, height=d/2.54, useDingbats=F, out.type = "pdf")
+#dev.copy2pdf(file="Analysis/Figures/FigureS1-PCA.pdf", width=c/2.54, height=d/2.54, useDingbats=F, out.type = "pdf")
 
 ```
 
